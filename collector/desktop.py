@@ -12,6 +12,8 @@ from urllib.parse import urlsplit
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from playwright.sync_api import sync_playwright
+from report import create_pdf
+from profiles import DEFAULT_LOGIN_URL
 from collect import capture, discover_tables, inventory, now, safe_url
 
 if getattr(sys, 'frozen', False):
@@ -44,11 +46,13 @@ def self_test(output):
         assert source['adapter'] == 'area-klinik-harian'
         assert project['datasets'][0]['rows'][0]['Pembilang'] == '0'
         assert source['pages'][0]['rowCount'] == 1
+        pdf = create_pdf(project, Path(tmp) / 'self-test.pdf')
+        assert pdf.read_bytes().startswith(b'%PDF') and pdf.stat().st_size > 1000
         browser.close()
     gui.close()
     root.after(5000, root.destroy)
     root.mainloop()
-    Path(output).write_text(json.dumps({'passed': True, 'frozen': bool(getattr(sys, 'frozen', False)), 'gui': True, 'chromium': True, 'adapter': source['adapter']}))
+    Path(output).write_text(json.dumps({'passed': True, 'frozen': bool(getattr(sys, 'frozen', False)), 'gui': True, 'chromium': True, 'pdf': True, 'adapter': source['adapter']}))
 
 
 class Desktop:
@@ -72,7 +76,7 @@ class Desktop:
             row = ttk.Frame(frame)
             row.pack(fill='x', pady=4)
             ttk.Label(row, text=label, width=34).pack(side='left')
-            value = tk.StringVar()
+            value = tk.StringVar(value=DEFAULT_LOGIN_URL if key=='url' else '')
             field = ttk.Entry(row, textvariable=value)
             field.pack(side='left', fill='x', expand=True)
             self.values[key] = value
@@ -94,12 +98,19 @@ class Desktop:
         lower.pack(fill='x')
         ttk.Button(lower, text='Pilih folder hasil', command=self.choose_folder).pack(side='left')
         ttk.Button(lower, text='Buka folder hasil', command=self.open_folder).pack(side='left', padx=6)
-        ttk.Button(lower, text='Hentikan setelah halaman aktif', command=self.stop.set).pack(side='left')
+        self.stop_button=ttk.Button(lower,text='Hentikan setelah halaman aktif',command=self.stop.set)
+        self.stop_button.pack(side='left')
+        export_row=ttk.Frame(frame)
+        export_row.pack(fill='x',pady=(12,0))
+        pdf_button=ttk.Button(export_row,text='4. Simpan PDF langsung',command=lambda:self.submit('pdf'))
+        pdf_button.pack(side='left')
+        self.actions.append(pdf_button)
+        ttk.Label(export_row,text='Tidak memerlukan login aktif atau upload ke server.').pack(side='left',padx=8)
         self.status = tk.StringVar(value='Siap. Buka browser, login, lalu pilih menu/filter di SISMADAK.')
         ttk.Label(frame, textvariable=self.status, wraplength=750).pack(anchor='w', pady=12)
         self.log = tk.Text(frame, height=10, state='disabled', wrap='word')
         self.log.pack(fill='both', expand=True)
-        ttk.Label(frame, text='Setelah selesai, impor project.json ke aplikasi web untuk memeriksa hasil dan membuat PDF.', wraplength=750).pack(anchor='w', pady=(12, 0))
+        ttk.Label(frame, text='Setelah menarik data, klik Simpan PDF langsung. Anda juga dapat mengimpor project.json ke web untuk pemeriksaan per baris.', wraplength=750).pack(anchor='w', pady=(12, 0))
         root.protocol('WM_DELETE_WINDOW', self.close)
         threading.Thread(target=self.worker, daemon=True).start()
         root.after(100, self.poll)
@@ -119,7 +130,7 @@ class Desktop:
 
     def submit(self, kind):
         data = {key: value.get().strip() for key, value in self.values.items()}
-        if kind != 'open' and not data['menu']:
+        if kind not in ('open','pdf') and not data['menu']:
             messagebox.showerror('Metadata belum lengkap', 'Isi nama menu aktif terlebih dahulu.'); return
         if kind == 'capture':
             if not data['period'] or self.choice.current() < 0:
@@ -131,12 +142,22 @@ class Desktop:
             if not messagebox.askyesno('Konfirmasi sumber', 'Pastikan menu/filter benar dan pagination berada pada halaman pertama. Mulai mengambil tabel ini?'):
                 return
         data['output'] = self.folder / 'project.json'
+        if kind == 'pdf':
+            if not data['output'].is_file():
+                selected=filedialog.askopenfilename(title='Pilih JSON hasil collector',filetypes=[('Proyek JSON','*.json')])
+                if not selected: return
+                data['output']=Path(selected)
+            selected=filedialog.asksaveasfilename(title='Simpan PDF gabungan',initialdir=data['output'].parent,initialfile='sismadak-gabungan.pdf',defaultextension='.pdf',filetypes=[('PDF','*.pdf')])
+            if not selected: return
+            data['pdf_output']=Path(selected)
         for button in self.actions:
             button.configure(state='disabled')
         for field in self.inputs:
             field.configure(state='disabled')
         self.choice.configure(state='disabled')
         self.stop.clear()
+        self.stop_button.configure(state='disabled' if kind=='pdf' else 'normal')
+        if kind=='pdf':self.status.set('Menyusun PDF lokal; mohon tunggu hingga pesan berhasil.')
         self.jobs.put((kind, data))
 
     def confirm(self, text):
@@ -156,7 +177,11 @@ class Desktop:
                 if kind == 'close':
                     break
                 try:
-                    if kind == 'open':
+                    if kind == 'pdf':
+                        project=json.loads(data['output'].read_text(encoding='utf-8'))
+                        create_pdf(project,data['pdf_output'])
+                        self.events.put(('log',f"PDF berhasil disimpan: {data['pdf_output']}. Status penarikan dan isi tercantum dalam dokumen."))
+                    elif kind == 'open':
                         origin = validate_url(data['url'])
                         if browser:
                             browser.close()
@@ -221,6 +246,7 @@ class Desktop:
                 self.log.see('end')
                 self.log.configure(state='disabled')
             elif kind == 'done' and not self.closing:
+                self.stop_button.configure(state='normal')
                 for button in self.actions:
                     button.configure(state='normal')
                 for field in self.inputs:

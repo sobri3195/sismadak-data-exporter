@@ -20,6 +20,8 @@ test("downloadable collector ZIP contains only reviewed sources with matching ch
         "collect.py",
         "adapters.py",
         "desktop.py",
+        "report.py",
+        "profiles.py",
         "requirements.txt",
         "PANDUAN.md",
         "mulai.cmd",

@@ -6,11 +6,11 @@ Aplikasi Next.js App Router + TypeScript untuk menggabungkan **data yang berhasi
 
 **Windows tanpa Python:** buka tautan **Aplikasi Windows tanpa Python** → pilih run berhasil workflow desktop di GitHub → unduh artifact `SISMADAK-Collector-Windows-x64` → ekstrak ZIP di dalamnya → jalankan `SISMADAK-Collector.exe` bersama folder `_internal`. Chromium dan runtime Python sudah dikemas. Artifact memerlukan login GitHub dan tersedia 30 hari; workflow dapat dijalankan kembali. Build portabel x64 ini belum ditandatangani dengan sertifikat penerbit.
 
-Isi alamat HTTPS, klik **Buka browser / login**, login sendiri, lalu pilih menu/filter melalui SISMADAK. Isi metadata sumber, klik **Periksa tabel**, pilih tabel, dan **Ambil tabel**. Gunakan **Buka folder hasil** untuk menemukan `project.json`; impor ke aplikasi Vercel → periksa **Penarikan** dan **Isi** → **Buat PDF gabungan**. GUI menyediakan progres, konfirmasi pagination, pilihan folder, dan penghentian setelah halaman aktif.
+Isi alamat HTTPS, klik **Buka browser / login**, login sendiri, lalu pilih menu/filter melalui SISMADAK. Isi metadata sumber, klik **Periksa tabel**, pilih tabel, dan **Ambil tabel**. Gunakan **Buka folder hasil** untuk menemukan `project.json`; klik **4. Simpan PDF langsung** untuk membuat PDF lokal. Untuk pemeriksaan per baris, Anda juga dapat mengimpor ke aplikasi Vercel → periksa **Penarikan** dan **Isi** → **Buat PDF gabungan**. GUI menyediakan progres, konfirmasi pagination, pilihan folder, dan penghentian setelah halaman aktif.
 
 Alternatif sumber untuk Windows/macOS/Linux: unduh collector ZIP, ekstrak dan jalankan `mulai.cmd` atau `sh mulai.sh`. Alternatif ini masih membutuhkan Python 3.10+ dan Tkinter; launcher memasang dependensi dan Chromium sebelum membuka GUI. CLI tetap tersedia melalui `python collector/collect.py --url https://HOST-ANDA --resume`.
 
-Paket sumber publik dibuat saat prebuild/predev oleh Node.js dari tujuh file kode/panduan yang diizinkan secara eksplisit, ditambah checksum. Build Vercel tidak menjalankan Python/Chromium dan tidak mengemas data pengguna atau kredensial. Paket Windows dibangun terpisah di workflow Windows menggunakan PyInstaller dan Chromium; self-test menjalankan EXE yang dibekukan, memuat GUI, membuka browser headless, serta mengambil fixture sintetis. Hasil self-test dan artifact harus diperiksa sebelum distribusi. Tidak ada integrasi SISMADAK asli yang sudah diverifikasi.
+Paket sumber publik dibuat saat prebuild/predev oleh Node.js dari sembilan file kode/panduan yang diizinkan secara eksplisit, ditambah checksum. Build Vercel tidak menjalankan Python/Chromium dan tidak mengemas data pengguna atau kredensial. Paket Windows dibangun terpisah di workflow Windows menggunakan PyInstaller dan Chromium; self-test menjalankan EXE yang dibekukan, memuat GUI, membuka browser headless, serta mengambil fixture sintetis. Hasil self-test dan artifact harus diperiksa sebelum distribusi. Tidak ada integrasi SISMADAK asli yang sudah diverifikasi.
 
 ## Menjalankan aplikasi
 
@@ -164,3 +164,15 @@ Build dan alur browser diuji menggunakan data sintetis pada mesin pengembangan d
 Workflow `.github/workflows/desktop.yml` memakai Windows Server 2022/Python 3.12, Playwright yang dipin, serta PyInstaller 6.16.0. Chromium diunduh dengan verifikasi standar, kemudian EXE one-directory dan browser dikemas dalam ZIP. Self-test frozen EXE harus lulus sebelum artifact diunggah. Workflow berjalan pada PR/perubahan collector di main dan dapat dijalankan manual. Tidak ada proses build desktop di Vercel.
 
 Artifact GitHub bukan installer bertanda tangan atau rilis publik permanen. Sertifikat penandatanganan dan penerbitan rilis permanen memerlukan konfigurasi pemilik repository; tidak ada kredensial yang ditanam. Untuk build pengembangan desktop lokal: instal requirements, jalankan `python collector/desktop.py`.
+
+## PDF langsung dan profil RSPAU
+
+Alamat publik `https://sismadak.rspauhardjolukito.co.id/login.php` menjadi nilai awal URL di GUI dan pilihan default CLI. Tidak ada username, password, cookie, atau token yang disimpan dalam profil, kode, ZIP, atau PDF contoh. Profil URL tidak berarti login dan struktur halaman situs tersebut sudah diuji. Akses situs dari workspace pengembangan terakhir diblokir proxy CONNECT 403; pengujian akun nyata masih tertunda sampai akses jaringan diaktifkan.
+
+GUI: setelah mengambil tabel, klik **4. Simpan PDF langsung**, pilih lokasi PDF, lalu tunggu pesan berhasil. Ekspor membaca `project.json` lokal dan tidak membutuhkan sesi login aktif atau koneksi ke Vercel. Jika belum ada proyek pada folder hasil, dialog dapat memilih JSON hasil collector yang sudah tersedia. File asli tidak diubah.
+
+CLI penarikan: `python collector/collect.py --url https://HOST-ANDA/login.php --resume --pdf exports/laporan.pdf`; PDF dibuat ketika pengguna menyelesaikan penarikan dengan `q`. PDF dari proyek yang sudah ada tanpa membuka SISMADAK: `python collector/report.py collector-output/project.json exports/laporan.pdf`.
+
+PDF lokal dibuat menggunakan ReportLab dengan font Vera yang didistribusikan bersama dependensinya, daftar isi beserta nomor halaman/outline, pembatas bagian, tabel berulang dengan maksimal enam kolom per kelompok, dan lampiran pemeriksaan. Sel panjang dapat dibagi lintas halaman. Teks sumber di-escape dan tidak dieksekusi sebagai HTML. Nilai kosong, nol, 0/0 dan status penarikan/isi dipertahankan; PDF bukan bukti semua data akun sudah terambil. Pemrosesan berlangsung lokal, tanpa permintaan jaringan.
+
+Workflow desktop juga menjalankan ekspor PDF dari EXE frozen pada Windows tanpa perintah Python di PATH; artifact harus lulus self-test GUI, Chromium, dan PDF sebelum diunggah. Paket sumber Python membutuhkan `pip install -r collector/requirements.txt` untuk menambahkan ReportLab.

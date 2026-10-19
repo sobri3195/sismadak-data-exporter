@@ -9,7 +9,7 @@
 5. Pilih menu, unit, tahun, dan periode melalui kontrol SISMADAK yang benar-benar ada. Isi metadata yang sama di collector, lalu klik **Periksa tabel**. Pilih satu tabel dari daftar yang ditemukan. Tabel tanpa adapter tidak dapat diambil dengan menebak struktur.
 6. Pastikan pagination ada di halaman pertama, lalu klik **Ambil tabel**. Konfirmasi halaman berikutnya melalui dialog. Tombol hentikan bekerja setelah halaman aktif; data yang sudah disimpan tetap tersedia. Jika login habis, login kembali melalui browser dan ulangi bagian dari halaman pertama.
 7. Hasil default ada di folder pribadi `SISMADAK-Collector/project.json`; gunakan **Pilih folder hasil** atau **Buka folder hasil**. Penarikan berikutnya membaca proyek yang sama dan mengganti bagian dengan konteks yang sama. Proyek tidak mempertahankan versi lama secara otomatis.
-8. Impor `project.json` ke aplikasi web. Periksa status **Penarikan** dan **Isi** secara terpisah, buka temuan per baris, lalu buat PDF dan/atau unduh laporan pemeriksaan.
+8. Klik **4. Simpan PDF langsung**, pilih lokasi PDF, lalu tunggu pesan berhasil. Ekspor membaca proyek lokal tanpa login aktif dan tanpa upload. Jika belum ada file pada folder hasil, pilih JSON hasil collector melalui dialog. Anda juga dapat mengimpor `project.json` ke aplikasi web. Periksa status **Penarikan** dan **Isi** secara terpisah, buka temuan per baris, lalu buat PDF dan/atau unduh laporan pemeriksaan.
 
 ## Alternatif paket sumber Python (Windows/macOS/Linux)
 
@@ -35,3 +35,11 @@ Skema ini diuji menggunakan fixture sintetis. Kecocokan login, filter, paginatio
 Setiap halaman mencatat jumlah baris dan SHA-256 representasi baris. Aplikasi membandingkan total sumber, jumlah hasil, dan penjumlahan bukti halaman. Fingerprint adalah metadata pemeriksaan, bukan tanda tangan digital. Tanpa total sumber yang dapat dibaca, status penarikan tetap belum diperiksa. Sel kosong dan 0/0 dinilai pada sumbu isi, sehingga berbeda dari kegagalan penarikan.
 
 Collector hanya membaca; tidak mengedit, menyimpan perubahan, menghapus, menebak endpoint, melewati pembatasan akses, atau mengabaikan TLS. Jangan commit hasil asli, cookie, token, atau file .env; jangan tempatkan data pengguna di direktori publik. File proyek disimpan atomik dengan izin terbatas pada sistem POSIX. Data tidak dikirim ke analytics atau layanan AI.
+
+## Alamat awal dan PDF tanpa browser login
+
+URL awal GUI adalah `https://sismadak.rspauhardjolukito.co.id/login.php` dan dapat diganti. Profil hanya menyimpan alamat publik, tanpa kredensial. Login dilakukan sendiri di browser; akses dan format situs RSPAU asli belum diverifikasi dari environment pengembangan karena pembatasan jaringan.
+
+Tombol **4. Simpan PDF langsung** tersedia setelah memiliki hasil JSON dan dapat dipakai tanpa membuka browser SISMADAK. PDF mencakup seluruh dataset proyek serta status penarikan/isi, daftar isi, nomor halaman, header tabel berulang, pembagian kolom, dan laporan pemeriksaan. Dokumen yang mengandung sumber gagal/sebagian tetap berlabel status tersebut.
+
+Dari CLI sumber, tambahkan `--pdf laporan.pdf` saat menjalankan collector agar PDF dibuat setelah `q`. Untuk JSON yang sudah ada: `python report.py collector-output/project.json laporan.pdf`. Pengguna paket Windows tidak perlu memasang Python/ReportLab; keduanya dikemas pada build desktop.

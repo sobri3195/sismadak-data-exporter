@@ -190,6 +190,29 @@ export default function Home() {
             ＋ Impor hasil collector
           </button>
         </section>
+        <div className="scope-note direct-pdf-note">
+          <span>↓</span>
+          <div>
+            <strong>PDF langsung dari aplikasi Windows</strong>
+            <p>
+              Setelah mengambil data, klik <b>4. Simpan PDF langsung</b> di
+              collector. Tidak perlu upload atau impor ulang untuk membuat PDF
+              lokal.
+            </p>
+            <a
+              className="text-link"
+              href="https://sismadak.rspauhardjolukito.co.id/login.php"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Buka login SISMADAK RSPAU ↗
+            </a>
+            <small>
+              Login dilakukan sendiri di browser SISMADAK. Aplikasi ini tidak
+              menyimpan password.
+            </small>
+          </div>
+        </div>
         <section
           className="workflow"
           aria-label="Langkah tarik data menjadi PDF"
@@ -906,6 +929,12 @@ export default function Home() {
               <li>
                 Pilih menu, unit, tahun, dan periode di SISMADAK. Ikuti
                 konfirmasi terminal untuk mengambil tabel dan pagination.
+              </li>
+              <li>
+                Di aplikasi desktop, klik{" "}
+                <strong>4. Simpan PDF langsung</strong> dan pilih lokasi berkas.
+                Untuk pemeriksaan lebih rinci, Anda dapat memakai alur impor di
+                bawah.
               </li>
               <li>
                 Ketik <code>q</code> untuk selesai. Pada langkah 2, impor{" "}
