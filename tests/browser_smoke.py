@@ -18,6 +18,19 @@ with sync_playwright() as p:
     assert page.get_by_text('112 baris · Halaman 1 / 5').is_visible()
     assert page.get_by_text('— kosong', exact=True).is_visible()
     assert page.locator('.cell-0\\/0').is_visible()
+    coverage = page.locator('#coverage')
+    assert 'Penarikan:' in coverage.inner_text() and 'Isi:' in coverage.inner_text()
+    assert 'perlu diperiksa' in coverage.inner_text()
+    coverage.locator('details').first.locator('summary').click()
+    coverage.get_by_role('button', name='Baris 2, Januari: kosong', exact=True).click()
+    page.locator('.focused-row').wait_for()
+    assert 'Indikator sintetis 2' in page.locator('.focused-row').inner_text()
+    with page.expect_download() as event:
+        page.get_by_role('button', name='Unduh laporan pemeriksaan JSON', exact=True).click()
+    report=json.loads(event.value.path().read_text())
+    assert report['sections'][0]['captureStatus']=='lengkap terverifikasi'
+    assert report['sections'][0]['contentStatus']=='perlu diperiksa'
+    assert report['sections'][0]['issues'][0]['row']==2
     with page.expect_download() as event:
         page.get_by_role('button', name='↓ CSV arsip', exact=True).click()
     archive = event.value.path().read_bytes()

@@ -26,10 +26,24 @@ export type Source = {
   errors?: string[];
   adapter?: string;
   unknownColumns?: string[];
+  rowCount?: number;
+  columns?: string[];
+  contentWarnings?: string[];
+  requiredColumns?: string[];
+  columnRoles?: Record<string, string>;
+  adapterValidation?: string;
+  pages?: {
+    page: number;
+    rowCount: number;
+    rowsHash: string;
+    capturedAt?: string;
+  }[];
 };
 export type Dataset = { id: string; name: string; source: Source; rows: Row[] };
 export type InventoryItem = {
   menu: string;
+  unit?: string;
+  year?: string;
   url?: string;
   period?: string;
   status?: string;
@@ -58,6 +72,7 @@ const known = new Set([
   "Penyebut",
   "Tanggal",
   "Nilai",
+  "Status",
 ]);
 export function valueKind(value: unknown) {
   if (value === null || value === undefined || value === "") return "kosong";
@@ -122,6 +137,59 @@ function normalizeDataset(
     (!Number.isInteger(d.source.expectedRows) || d.source.expectedRows < 0)
   )
     throw new Error("Jumlah baris harapan tidak valid.");
+  if (d.source) {
+    const source = d.source;
+    if (
+      source.rowCount !== undefined &&
+      (!Number.isInteger(source.rowCount) || source.rowCount < 0)
+    )
+      throw new Error("Jumlah baris manifest tidak valid.");
+    if (
+      source.contentWarnings !== undefined &&
+      (!Array.isArray(source.contentWarnings) ||
+        source.contentWarnings.some((w) => typeof w !== "string"))
+    )
+      throw new Error("Catatan isi tidak valid.");
+    if (
+      source.columns !== undefined &&
+      (!Array.isArray(source.columns) ||
+        source.columns.some((c) => typeof c !== "string"))
+    )
+      throw new Error("Header sumber tidak valid.");
+    if (
+      source.requiredColumns !== undefined &&
+      (!Array.isArray(source.requiredColumns) ||
+        source.requiredColumns.some((c) => typeof c !== "string"))
+    )
+      throw new Error("Kolom wajib manifest tidak valid.");
+    if (
+      source.columnRoles !== undefined &&
+      (!source.columnRoles ||
+        typeof source.columnRoles !== "object" ||
+        Array.isArray(source.columnRoles) ||
+        Object.values(source.columnRoles).some((v) => typeof v !== "string"))
+    )
+      throw new Error("Pemetaan kolom tidak valid.");
+    if (
+      source.pages !== undefined &&
+      (!Array.isArray(source.pages) ||
+        source.pages.some(
+          (p, i) =>
+            !p ||
+            p.page !== i + 1 ||
+            !Number.isInteger(p.rowCount) ||
+            p.rowCount < 0 ||
+            typeof p.rowsHash !== "string" ||
+            !/^[a-f0-9]{64}$/.test(p.rowsHash),
+        ))
+    )
+      throw new Error("Bukti halaman tidak valid.");
+    if (
+      source.adapterValidation !== undefined &&
+      typeof source.adapterValidation !== "string"
+    )
+      throw new Error("Validasi adapter tidak valid.");
+  }
   return {
     id: crypto.randomUUID(),
     name: typeof d.name === "string" ? d.name : `${name} ${index + 1}`,
@@ -161,7 +229,9 @@ export function importText(text: string, name: string): Project {
           !x ||
           typeof x.menu !== "string" ||
           (x.period !== undefined && typeof x.period !== "string") ||
-          (x.status !== undefined && typeof x.status !== "string"),
+          (x.status !== undefined && typeof x.status !== "string") ||
+          (x.unit !== undefined && typeof x.unit !== "string") ||
+          (x.year !== undefined && typeof x.year !== "string"),
       )
     )
       throw new Error("Inventaris tidak valid.");
@@ -275,35 +345,73 @@ export function duplicates(datasets: Dataset[]) {
     }
   return count;
 }
+export function inventoryMatches(source: Source, item: InventoryItem) {
+  return (
+    item.menu === source.menu &&
+    item.period === source.period &&
+    (item.unit === undefined || item.unit === (source.unit ?? "")) &&
+    (item.year === undefined || item.year === (source.year ?? ""))
+  );
+}
 export function inspect(d: Dataset, inventory: InventoryItem[]) {
-  const columns = Array.from(new Set(d.rows.flatMap(Object.keys)));
+  const columns = Array.from(
+    new Set([...(d.source.columns ?? []), ...d.rows.flatMap(Object.keys)]),
+  );
   const rekap =
     d.source.adapter === "rekap-imut-rs" ||
     (columns.includes("Indikator") && MONTHS.some((m) => columns.includes(m)));
-  const missingMonths = rekap ? MONTHS.filter((m) => !columns.includes(m)) : [];
+  const missingMonths = rekap
+    ? MONTHS.filter(
+        (m) => !columns.includes(d.source.columnRoles?.[`month:${m}`] ?? m),
+      )
+    : [];
   const emptyCells = d.rows.reduce(
     (n, r) => n + columns.filter((c) => valueKind(r[c]) === "kosong").length,
     0,
   );
   const zeroOverZero = d.rows.filter(
     (r) =>
-      (valueKind(r.Pembilang) === "nol" && valueKind(r.Penyebut) === "nol") ||
+      (valueKind(r[d.source.columnRoles?.numerator ?? "Pembilang"]) === "nol" &&
+        valueKind(r[d.source.columnRoles?.denominator ?? "Penyebut"]) ===
+          "nol") ||
       Object.values(r).some((v) => valueKind(v) === "0/0"),
   ).length;
-  const unknownColumns = columns.filter((c) => !known.has(c));
+  const requiredColumns =
+    d.source.requiredColumns ??
+    (rekap ? ["No", "Kategori", "Indikator", ...MONTHS, "Benchmark"] : []);
+  const missingColumns = requiredColumns.filter((c) => !columns.includes(c));
+  const unknownColumns = columns.filter(
+    (c) =>
+      !known.has(c) && !Object.values(d.source.columnRoles ?? {}).includes(c),
+  );
   const matched =
     d.source.expectedRows !== undefined &&
     d.source.expectedRows === d.rows.length;
-  const inventoried = inventory.some(
-    (i) => i.menu === d.source.menu && i.period === d.source.period,
-  );
-  const status =
-    d.source.check === "failed" || (d.source.errors?.length ?? 0) > 0
+  const inventoried = inventory.some((i) => inventoryMatches(d.source, i));
+  const evidenceErrors: string[] = [];
+  if (d.source.rowCount !== undefined && d.source.rowCount !== d.rows.length)
+    evidenceErrors.push(
+      "Jumlah baris manifest berbeda dari file yang diimpor.",
+    );
+  if (
+    d.source.pages !== undefined &&
+    d.source.pages.reduce((n, p) => n + p.rowCount, 0) !== d.rows.length
+  )
+    evidenceErrors.push("Jumlah baris bukti halaman berbeda dari hasil impor.");
+  if (
+    d.source.pages &&
+    new Set(d.source.pages.map((p) => p.rowsHash)).size !==
+      d.source.pages.length
+  )
+    evidenceErrors.push(
+      "Fingerprint halaman berulang; periksa duplikasi pagination.",
+    );
+  const captureStatus =
+    d.source.check === "failed" ||
+    (d.source.errors?.length ?? 0) > 0 ||
+    evidenceErrors.length > 0
       ? "gagal"
-      : missingMonths.length ||
-          emptyCells ||
-          (d.source.expectedRows !== undefined && !matched) ||
-          !d.rows.length
+      : d.source.expectedRows !== undefined && !matched
         ? "sebagian"
         : matched &&
             inventoried &&
@@ -311,17 +419,162 @@ export function inspect(d: Dataset, inventory: InventoryItem[]) {
             !!d.source.period
           ? "lengkap terverifikasi"
           : "belum diperiksa";
+  const contentStatus = !d.rows.length
+    ? "tidak ada data"
+    : emptyCells ||
+        missingColumns.length ||
+        missingMonths.length ||
+        zeroOverZero ||
+        unknownColumns.length ||
+        (d.source.contentWarnings?.length ?? 0) > 0
+      ? "perlu diperiksa"
+      : "lengkap";
+  // Preserve the conservative combined status for legacy consumers while exposing both axes.
+  const status =
+    captureStatus === "gagal"
+      ? "gagal"
+      : contentStatus !== "lengkap" || captureStatus === "sebagian"
+        ? "sebagian"
+        : captureStatus;
+  const issues: { row: number; column: string; kind: string }[] = [];
+  const numerator = d.source.columnRoles?.numerator ?? "Pembilang";
+  const denominator = d.source.columnRoles?.denominator ?? "Penyebut";
+  for (let i = 0; i < d.rows.length; i++) {
+    const row = d.rows[i];
+    for (const c of columns) {
+      if (valueKind(row[c]) === "kosong")
+        issues.push({ row: i + 1, column: c, kind: "kosong" });
+      else if (valueKind(row[c]) === "0/0")
+        issues.push({ row: i + 1, column: c, kind: "0/0" });
+    }
+    if (
+      valueKind(row[numerator]) === "nol" &&
+      valueKind(row[denominator]) === "nol"
+    )
+      issues.push({
+        row: i + 1,
+        column: `${numerator} / ${denominator}`,
+        kind: "0/0",
+      });
+  }
   return {
     columns,
     missingMonths,
+    missingColumns,
     emptyCells,
     zeroOverZero,
     unknownColumns,
     status,
+    captureStatus,
+    contentStatus,
     matched,
     inventoried,
+    evidenceErrors,
+    issues,
+    evidenceLevel: d.source.pages?.length
+      ? "bukti per halaman"
+      : "manifest tanpa bukti halaman",
   };
 }
+export function verificationReport(project: Project) {
+  return {
+    schemaVersion: 1,
+    scope: "Hanya data dan bukti yang diimpor; bukan konfirmasi live SISMADAK.",
+    pendingInventory: project.inventory.filter(
+      (i) => !project.datasets.some((d) => inventoryMatches(d.source, i)),
+    ),
+    sections: project.datasets.map((d) => {
+      const s = inspect(d, project.inventory);
+      return {
+        dataset: d.name,
+        menu: d.source.menu,
+        unit: d.source.unit,
+        year: d.source.year,
+        period: d.source.period,
+        adapter: d.source.adapter,
+        adapterValidation: d.source.adapterValidation,
+        contentWarnings: d.source.contentWarnings ?? [],
+        captureStatus: s.captureStatus,
+        contentStatus: s.contentStatus,
+        actualRows: d.rows.length,
+        expectedRows: d.source.expectedRows,
+        evidenceLevel: s.evidenceLevel,
+        pages: d.source.pages ?? [],
+        missingColumns: s.missingColumns,
+        unknownColumns: s.unknownColumns,
+        errors: [...(d.source.errors ?? []), ...s.evidenceErrors],
+        issues: s.issues,
+      };
+    }),
+  };
+}
+export function verificationCSV(project: Project) {
+  return Papa.unparse(
+    [
+      ...verificationReport(project).sections.flatMap((s) => {
+        const context = {
+          menu: s.menu,
+          unit: s.unit ?? "",
+          tahun: s.year ?? "",
+          periode: s.period,
+          penarikan: s.captureStatus,
+          isi: s.contentStatus,
+        };
+        return [
+          {
+            ...context,
+            baris: "",
+            kolom: "",
+            temuan: `Ringkasan: ${s.actualRows} / ${s.expectedRows ?? "total tidak tersedia"} baris`,
+          },
+          ...s.issues.map((i) => ({
+            ...context,
+            baris: String(i.row),
+            kolom: i.column,
+            temuan: i.kind,
+          })),
+          ...s.contentWarnings.map((e) => ({
+            ...context,
+            baris: "",
+            kolom: "",
+            temuan: e,
+          })),
+          ...s.errors.map((e) => ({
+            ...context,
+            baris: "",
+            kolom: "",
+            temuan: e,
+          })),
+          ...s.missingColumns.map((c) => ({
+            ...context,
+            baris: "",
+            kolom: c,
+            temuan: "Kolom wajib hilang",
+          })),
+          ...s.unknownColumns.map((c) => ({
+            ...context,
+            baris: "",
+            kolom: c,
+            temuan: "Kolom tidak dikenal; dipertahankan",
+          })),
+        ];
+      }),
+      ...verificationReport(project).pendingInventory.map((i) => ({
+        menu: i.menu,
+        unit: i.unit ?? "",
+        tahun: i.year ?? "",
+        periode: i.period ?? "",
+        penarikan: "belum diperiksa",
+        isi: "belum diimpor",
+        baris: "",
+        kolom: "",
+        temuan: "Target inventaris belum diimpor",
+      })),
+    ],
+    { escapeFormulae: true },
+  );
+}
+
 export function csvArchive(project: Project) {
   return Papa.unparse([{ __sismadak_project_json: JSON.stringify(project) }]);
 }
@@ -401,7 +654,9 @@ export function groupRows(project: Project, dimension: GroupDimension) {
           keys =
             r.Bulan !== undefined
               ? [r.Bulan]
-              : MONTHS.filter((m) => Object.hasOwn(r, m));
+              : MONTHS.filter((m) =>
+                  Object.hasOwn(r, d.source.columnRoles?.[`month:${m}`] ?? m),
+                );
           break;
       }
       if (!keys.length) keys = ["Belum diketahui"];

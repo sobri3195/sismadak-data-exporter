@@ -10,3 +10,9 @@ tests/
 .env*
 *.tsbuildinfo
 **/__pycache__/
+
+.bundled-browsers/
+dist/
+build/
+*.spec
+desktop-self-test.json

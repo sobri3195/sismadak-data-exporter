@@ -11,4 +11,4 @@ fi
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m playwright install chromium
 printf '\nMasukkan URL SISMADAK di langkah berikutnya; login dilakukan sendiri di browser.\n'
-.venv/bin/python collect.py --resume
+.venv/bin/python desktop.py

@@ -11,3 +11,8 @@ __pycache__/
 .vercel/
 
 /public/sismadak-collector.zip
+.bundled-browsers/
+dist/
+build/
+*.spec
+desktop-self-test.json

@@ -813,3 +813,52 @@ tr:nth-child(even) {
     margin: 8px 0 12px;
   }
 }
+.verification-tools {
+  padding: 0 23px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.verification-tools p {
+  width: 100%;
+  font-size: 11px;
+}
+.verification-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.verification-status span {
+  padding: 9px;
+  background: #edf6f5;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.coverage-list details {
+  font-size: 12px;
+  margin-top: 12px;
+}
+.coverage-list summary {
+  cursor: pointer;
+  color: var(--teal);
+}
+.evidence-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.evidence-list code {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+.issue-list {
+  padding-left: 18px;
+  max-height: 230px;
+  overflow: auto;
+}
+.focused-row {
+  outline: 2px solid var(--teal);
+  outline-offset: -2px;
+  background: #e4f6f0 !important;
+}

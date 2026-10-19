@@ -8,6 +8,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Only these reviewed source files belong in the public download. Never zip a directory.
 const names = [
   "collect.py",
+  "adapters.py",
+  "desktop.py",
   "requirements.txt",
   "PANDUAN.md",
   "mulai.cmd",

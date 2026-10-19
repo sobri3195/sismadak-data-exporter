@@ -18,6 +18,8 @@ test("downloadable collector ZIP contains only reviewed sources with matching ch
       Object.keys(files).sort(),
       [
         "collect.py",
+        "adapters.py",
+        "desktop.py",
         "requirements.txt",
         "PANDUAN.md",
         "mulai.cmd",

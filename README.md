@@ -4,9 +4,13 @@ Aplikasi Next.js App Router + TypeScript untuk menggabungkan **data yang berhasi
 
 ## Tarik data lalu jadikan PDF
 
-Dari aplikasi Vercel: **Unduh collector (.zip)** → ekstrak dan jalankan **mulai.cmd** (Windows) atau **sh mulai.sh** (macOS/Linux) → masukkan URL HTTPS SISMADAK → login sendiri → ambil tabel pada menu/periode yang dipilih → impor **collector-output/project.json** → **Buat PDF gabungan**. Python 3.10+ dibutuhkan di komputer pengguna. Tidak perlu clone repository untuk memakai paket collector. Launcher menginstal dependensi dan Chromium dengan verifikasi TLS standar; launcher Windows belum diuji pada Windows asli.
+**Windows tanpa Python:** buka tautan **Aplikasi Windows tanpa Python** → pilih run berhasil workflow desktop di GitHub → unduh artifact `SISMADAK-Collector-Windows-x64` → ekstrak ZIP di dalamnya → jalankan `SISMADAK-Collector.exe` bersama folder `_internal`. Chromium dan runtime Python sudah dikemas. Artifact memerlukan login GitHub dan tersedia 30 hari; workflow dapat dijalankan kembali. Build portabel x64 ini belum ditandatangani dengan sertifikat penerbit.
 
-Paket publik dibuat saat `npm run build`/`npm run dev` oleh script Node.js dari lima file kode/panduan yang diizinkan secara eksplisit, ditambah checksum. Proses build Vercel hanya mengemas sumber Python sebagai ZIP; tidak menjalankan Python atau browser dan tidak menyertakan progres, cookie, kredensial, atau data pengguna. PDF tetap bisa dibuat dari impor JSON/CSV/HTML yang sudah dimiliki pengguna.
+Isi alamat HTTPS, klik **Buka browser / login**, login sendiri, lalu pilih menu/filter melalui SISMADAK. Isi metadata sumber, klik **Periksa tabel**, pilih tabel, dan **Ambil tabel**. Gunakan **Buka folder hasil** untuk menemukan `project.json`; impor ke aplikasi Vercel → periksa **Penarikan** dan **Isi** → **Buat PDF gabungan**. GUI menyediakan progres, konfirmasi pagination, pilihan folder, dan penghentian setelah halaman aktif.
+
+Alternatif sumber untuk Windows/macOS/Linux: unduh collector ZIP, ekstrak dan jalankan `mulai.cmd` atau `sh mulai.sh`. Alternatif ini masih membutuhkan Python 3.10+ dan Tkinter; launcher memasang dependensi dan Chromium sebelum membuka GUI. CLI tetap tersedia melalui `python collector/collect.py --url https://HOST-ANDA --resume`.
+
+Paket sumber publik dibuat saat prebuild/predev oleh Node.js dari tujuh file kode/panduan yang diizinkan secara eksplisit, ditambah checksum. Build Vercel tidak menjalankan Python/Chromium dan tidak mengemas data pengguna atau kredensial. Paket Windows dibangun terpisah di workflow Windows menggunakan PyInstaller dan Chromium; self-test menjalankan EXE yang dibekukan, memuat GUI, membuka browser headless, serta mengambil fixture sintetis. Hasil self-test dan artifact harus diperiksa sebelum distribusi. Tidak ada integrasi SISMADAK asli yang sudah diverifikasi.
 
 ## Menjalankan aplikasi
 
@@ -75,14 +79,18 @@ Contoh struktur (nilai sintetis):
 
 ## Status dan batas pembuktian
 
-Status dihitung per kumpulan data:
+Pusat verifikasi menampilkan dua sumbu untuk setiap dataset:
 
-- **Lengkap terverifikasi**: manifest `check: passed`, periode dinyatakan, menu+periode ada dalam inventaris, `expectedRows` persis sama jumlah baris, tidak ada kesalahan, baris tersedia, tidak ada sel kosong, dan semua kolom Januari–Desember tersedia untuk Rekap IMUT.
-- **Sebagian**: jumlah baris tidak cocok, sel kosong, tanpa baris, atau kolom bulan Rekap IMUT hilang.
-- **Belum diperiksa**: bukti total sumber, periode, kecocokan inventaris, atau pemeriksaan collector belum cukup.
-- **Gagal**: pemeriksaan collector gagal atau manifest mencatat kesalahan. Format belum dikenal juga masuk kategori ini dengan penjelasan adapter.
+- **Penarikan:** lengkap terverifikasi jika periode dan inventaris cocok, check collector passed, serta total sumber sama dengan hasil; sebagian jika jumlah belum cocok; gagal jika collector mencatat kesalahan atau bukti saling bertentangan; belum diperiksa jika bukti belum cukup. File lama tanpa bukti halaman tetap dinilai dari manifest dan diberi label tersebut.
+- **Isi:** lengkap jika tidak ada temuan yang dikenal; perlu diperiksa untuk sel kosong, 0/0, kolom wajib hilang, atau kolom tidak dikenal; tidak ada data untuk hasil tanpa baris. Nilai nol tidak dianggap kosong. Sumber dengan total nol dapat mempunyai penarikan terverifikasi dan isi tidak ada data.
 
-Entri inventaris yang belum mempunyai dataset ditampilkan sebagai belum diperiksa/belum diimpor. Tahun/bulan yang wajib hanya dapat ditentukan dari inventaris/filter yang benar-benar diketahui, bukan ditebak. Inventaris tautan tanpa periode **bukan** bukti semua periode diperiksa. Mengubah metadata sumber di UI mengembalikan pemeriksaan ke belum diperiksa. Tidak ada klaim “seluruh data berhasil diambil”. Status adalah penilaian atas bukti file, bukan tanda tangan kriptografis atau konfirmasi live dari server SISMADAK.
+Ringkasan gabungan konservatif tetap tersedia untuk kompatibilitas. Contoh 112 indikator memiliki penarikan terverifikasi berdasarkan manifest sintetis, tetapi isi perlu diperiksa karena ada sel kosong dan 0/0. Sel kosong pada sumber tidak dengan sendirinya berarti penarikan gagal.
+
+Bukti baru memuat `source.columns`, `requiredColumns`, `columnRoles`, `rowCount`, dan `pages` (nomor halaman, jumlah baris, fingerprint SHA-256, waktu). Aplikasi memeriksa konsistensi jumlah baris manifest/hasil/halaman dan fingerprint halaman berulang. Hash disajikan sebagai metadata bukti; aplikasi tidak mengklaim autentisitas atau tanda tangan kriptografis dari file impor. Inventaris menu/periode yang belum diimpor tetap ditampilkan.
+
+Buka temuan kosong/0/0 untuk melompat ke baris terkait. Pratinjau membatasi 50 temuan pertama per bagian; laporan JSON/CSV memuat seluruh temuan, kolom wajib hilang, kolom tidak dikenal, dan kesalahan. Laporan pemeriksaan dan PDF mencantumkan status penarikan/isi secara terpisah. Tidak ada perubahan otomatis pada nilai asli.
+
+Inventaris hanya mencakup tautan yang ditemukan dan periode yang dikonfirmasi pengguna. Belum ada pembuktian seluruh periode akun. Mengubah metadata sumber di UI mengembalikan check menjadi belum diperiksa. Status file impor adalah penilaian atas bukti yang diberikan, bukan konfirmasi live dari SISMADAK.
 
 ## Ekspor
 
@@ -108,7 +116,7 @@ python collector/collect.py --url https://HOST-SISMADAK-ANDA
 1. Masukkan URL HTTPS yang Anda ketahui. Browser dibuka dengan konteks sementara; login sendiri. Cookie/password/token tidak ditulis ke file.
 2. Navigasikan menu dan kontrol filter **yang benar-benar ada** secara manual. Collector tidak menebak URL/endpoint dan tidak mengklik menu atau formulir edit/simpan/hapus.
 3. Kembali ke terminal, Enter, lalu catat nama menu, periode/filter, unit, dan tahun yang sedang aktif. Pastikan pagination berada di halaman pertama. Collector menginventarisasi tautan pada halaman host yang sama, tanpa query/fragment URL.
-4. Collector mengenali tabel datar Rekap IMUT RS (`No`, `Kategori`, `Indikator`, Januari–Desember, `Benchmark`). Tabel lainnya dicatat **adapter belum tersedia**. Beberapa tabel cocok, header gabungan, atau sel tak sesuai header memerlukan penyesuaian adapter, bukan tebakan.
+4. Adapter berbasis skema tersedia untuk Rekap IMUT RS, Area Manajemen/Klinik harian, rincian indikator, Kegiatan, dan daftar lampiran. Konteks menu serta header wajib harus cocok; bentuk lain tetap **adapter belum tersedia**. Header bertingkat dan rowspan isi didukung; colspan isi ditolak. GUI dapat memilih tabel ketika beberapa tabel ditemukan; CLI menolak ambiguitas.
 5. Pengguliran ancestor tabel yang benar-benar memiliki overflow dibaca; tampilan yang tumpang tindih digabung memakai kolom `No`. Konflik nomor dicatat sebagai gagal. Tabel biasa mempertahankan duplikasi. Virtualisasi tanpa identitas nomor stabil belum didukung.
 6. Pagination hanya memakai kontrol Next/Berikutnya/Selanjutnya/rel=next yang benar-benar ditemukan di wrapper pagination. Setiap klik memerlukan persetujuan terminal. Tidak mengklik tombol umum di luar pagination. Kontrol tak dikenal, ambigu, atau halaman berulang tidak membuktikan selesai.
 7. Total sumber diambil hanya dari ringkasan eksplisit `Showing 1 to 10 of 112 entries` atau `Menampilkan 1 sampai 10 dari 112 entri/data` di wrapper tabel. Tanpa total yang dikenal, status tetap belum diperiksa. Perbandingan total dan baris bukan bukti semua menu/periode akun sudah didapat.
@@ -120,13 +128,13 @@ python collector/collect.py --url https://HOST-SISMADAK-ANDA --resume
 
 Resume mempertahankan bagian yang sudah disimpan. Untuk bagian yang terputus, login lagi, setel **filter yang sama dan halaman pertama**, lalu ambil ulang: dataset dengan konteks menu/unit/tahun/periode/URL yang sama diganti, bukan ditambahkan ganda. Bukan pemulihan cookie atau posisi pagination otomatis. Jangan memakai output resume yang tidak Anda percayai. Periksa manifest kesalahan sebelum impor.
 
-`ADAPTERS` di `collector/collect.py` merupakan titik ekstensi. Adapter **Area Manajemen harian, Area Klinik harian, rincian indikator, Kegiatan, dan lampiran** masih memerlukan contoh HTML yang sudah disamarkan serta bukti pagination/total/filter. Lampiran belum diunduh/digabung sebagai berkas PDF; jangan menganggapnya sudah tercakup. Inventaris saat ini berdasarkan tautan yang ditemukan pada halaman yang dikunjungi, belum crawler menyeluruh. Kontrol berbasis JavaScript atau struktur nonstandar memerlukan adapter tambahan. Tidak ada bypass akses atau penonaktifan verifikasi TLS.
+`ADAPTERS` di `collector/adapters.py` merupakan titik ekstensi. Skema dan alias yang didukung dijelaskan di [panduan collector](collector/PANDUAN.md), dengan fixture berlabel sintetis di `tests/fixtures`. Adapter rincian mendukung bentuk parameter/keterangan serta pengukuran harian. Daftar lampiran hanya mengambil tabel daftar, belum mengambil berkas. Seluruh adapter baru berstatus `schema-fixtures-only`; pengujian terhadap contoh HTML tersamarkan dan akun SISMADAK yang diizinkan tetap diperlukan. Inventaris belum merupakan crawler menyeluruh dan tidak ada bypass akses/TLS.
 
 ## Validasi browser dan collector sintetis
 
 ```sh
 # Gunakan virtualenv collector di atas. Pada Linux tersedia Chromium sistem:
-SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python -m unittest discover -s tests -p 'test_collector.py' -v
+SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
 # Di terminal lain: npm run build && npm start
 SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python tests/browser_smoke.py
 SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python tests/collector_to_pdf.py
@@ -150,3 +158,9 @@ Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada dep
 Setelah deployment, uji halaman utama, tombol contoh sintetis, impor ulang CSV arsip, unduh JSON/PDF, dan refresh halaman. Data proyek memang hilang ketika refresh; simpan JSON terlebih dahulu. Tidak perlu mengaktifkan Vercel Analytics atau mengatur secret aplikasi. Jika build gagal, periksa Build Logs, Node.js 24.x, Root Directory, dan output default sebelum menambahkan konfigurasi lain.
 
 Build dan alur browser diuji menggunakan data sintetis pada mesin pengembangan dan CI GitHub. Periksa check Vercel pada PR untuk status deployment commit terkait. Status Ready membuktikan proses deployment selesai, bukan bahwa login dan seluruh menu SISMADAK asli sudah diuji. Git integration Vercel yang diaktifkan pemilik project dapat membuat preview otomatis saat branch didorong. Jangan mengaktifkan analytics yang membaca isi data. Jika kelak membutuhkan penyimpanan server, tambahkan autentikasi dan penyimpanan privat dalam pekerjaan terpisah sebelum mengunggah data pengguna.
+
+## Membangun aplikasi Windows
+
+Workflow `.github/workflows/desktop.yml` memakai Windows Server 2022/Python 3.12, Playwright yang dipin, serta PyInstaller 6.16.0. Chromium diunduh dengan verifikasi standar, kemudian EXE one-directory dan browser dikemas dalam ZIP. Self-test frozen EXE harus lulus sebelum artifact diunggah. Workflow berjalan pada PR/perubahan collector di main dan dapat dijalankan manual. Tidak ada proses build desktop di Vercel.
+
+Artifact GitHub bukan installer bertanda tangan atau rilis publik permanen. Sertifikat penandatanganan dan penerbitan rilis permanen memerlukan konfigurasi pemilik repository; tidak ada kredensial yang ditanam. Untuk build pengembangan desktop lokal: instal requirements, jalankan `python collector/desktop.py`.

@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, urljoin
 from playwright.sync_api import sync_playwright
 
-MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+from adapters import MONTHS, ADAPTERS, SNAPSHOT, RekapIMUTAdapter
 
 def safe_url(url):
     p = urlsplit(url)
@@ -26,33 +26,19 @@ def save(path, project):
         json.dump(project, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
 
-class RekapIMUTAdapter:
-    name = 'rekap-imut-rs'
-    @staticmethod
-    def recognizes(headers):
-        return all(h in headers for h in ['No', 'Kategori', 'Indikator', *MONTHS, 'Benchmark'])
-    @staticmethod
-    def extract(snapshot):
-        headers, cells = snapshot['headers'], snapshot['rows']
-        if len(set(headers)) != len(headers):
-            raise ValueError('Header berulang: adapter perlu disesuaikan dengan contoh HTML.')
-        if snapshot['spans']:
-            raise ValueError('Header/sel gabungan: adapter perlu disesuaikan dengan contoh HTML.')
-        if any(len(row) != len(headers) for row in cells):
-            raise ValueError('Jumlah sel tidak sesuai header.')
-        return [dict(zip(headers, row)) for row in cells]
-
-# Register additional adapters here after validating real, redacted HTML fixtures.
-ADAPTERS = [RekapIMUTAdapter]
-
-SNAPSHOT = """t => {
- const trs = Array.from(t.rows);
- const hi = trs.findIndex(r => r.querySelector('th'));
- if (hi < 0) return {headers:[],rows:[],spans:false};
- return {headers:Array.from(trs[hi].cells).map(c=>c.innerText.trim()),
- rows:trs.slice(hi+1).filter(r=>r.cells.length).map(r=>Array.from(r.cells).map(c=>c.innerText.trim())),
- spans:trs.some(r=>Array.from(r.cells).some(c=>c.colSpan!==1||c.rowSpan!==1))};
-}"""
+def discover_tables(page, menu):
+    found = []
+    tables = page.locator('table')
+    for i in range(tables.count()):
+        table = tables.nth(i)
+        if not table.is_visible():
+            continue
+        snapshot = table.evaluate(SNAPSHOT)
+        matching = [a for a in ADAPTERS if a.recognizes(snapshot['headers'], menu)]
+        adapter = matching[0] if len(matching) == 1 else None
+        found.append({'index': i, 'headers': snapshot['headers'], 'adapter': adapter,
+                      'reason': 'adapter belum tersedia' if not adapter else 'skema dikenali; belum diuji pada SISMADAK asli'})
+    return found
 
 def inventory(page, project, origin):
     links = page.locator('a[href]').evaluate_all("els => els.map(a=>({menu:a.innerText.trim(),url:a.href}))")
@@ -68,62 +54,63 @@ def inventory(page, project, origin):
 
 
 def scroll_rows(table, adapter):
-    """Read discovered scrolling ancestor; use row number only to merge overlapping views."""
-    by_number = {}
-    errors = []
+    """Preserve ordinary DOM duplicates; require explicit No identity for virtualized views."""
     table.evaluate("t=>{let e=t.parentElement;while(e){if(e.scrollHeight>e.clientHeight+5&&['auto','scroll'].includes(getComputedStyle(e).overflowY)){e.scrollTop=0;break;}e=e.parentElement;}}")
     table.page.wait_for_timeout(200)
-    initial = None
+    views = []
     for step in range(500):
-        snap = table.evaluate(SNAPSHOT)
-        rows = adapter.extract(snap)
-        if initial is None:
-            initial = rows
-        for r in rows:
-            number = r.get('No', '')
-            if not number:
-                errors.append('Nomor baris kosong: gabungan tampilan gulir tidak dapat diverifikasi.')
-                return rows, errors
-            if number in by_number and by_number[number] != r:
-                errors.append('Nomor baris berulang dengan nilai berbeda pada tabel bergulir.')
-            by_number[number] = r
-        moved = table.evaluate("""t=>{let e=t.parentElement;while(e){if(e.scrollHeight>e.clientHeight+5&&['auto','scroll'].includes(getComputedStyle(e).overflowY)){const before=e.scrollTop;e.scrollTop+=Math.max(1,e.clientHeight*0.8);return e.scrollTop>before;}e=e.parentElement;}return false;}""")
+        rows = adapter.extract(table.evaluate(SNAPSHOT))
+        if not views or views[-1] != rows:
+            views.append(rows)
+        moved = table.evaluate("t=>{let e=t.parentElement;while(e){if(e.scrollHeight>e.clientHeight+5&&['auto','scroll'].includes(getComputedStyle(e).overflowY)){const before=e.scrollTop;e.scrollTop+=Math.max(1,e.clientHeight*0.8);return e.scrollTop>before;}e=e.parentElement;}return false;}")
         if not moved:
-            # Ordinary DOM table: preserve every original row, including duplicates.
-            return (initial if step == 0 else list(by_number.values())), list(dict.fromkeys(errors))
-        table.page.wait_for_timeout(250)
-    return list(by_number.values()), errors + ['Batas pengguliran tercapai; pengambilan sebagian.']
+            break
+        table.page.wait_for_timeout(100)
+    errors = [] if step < 499 else ['Batas pengguliran tercapai; pengambilan sebagian.']
+    if len(views) == 1:
+        return views[0], errors
+    by_number = {}
+    for view in views:
+        numbers = [row.get('No') for row in view]
+        if not all(numbers) or len(set(numbers)) != len(numbers):
+            return views[0], errors + ['Tabel virtual tanpa identitas No unik belum didukung.']
+        for row in view:
+            number = row['No']
+            if number in by_number and by_number[number] != row:
+                errors.append('Nomor baris berulang dengan nilai berbeda pada tabel virtual.')
+            by_number[number] = row
+    return list(by_number.values()), list(dict.fromkeys(errors))
 
 
 def expected_total(table):
     # Only standard, explicit pagination summaries are accepted as evidence.
-    text = table.evaluate("t => (t.closest('.dataTables_wrapper, .dt-container') || t.parentElement).innerText")
+    text = table.evaluate("t => {const scope=t.closest('.dataTables_wrapper, .dt-container')||t.parentElement;return scope.querySelectorAll('table').length===1?scope.innerText:'';}")
     matches = re.findall(r'(?:Showing\s+[\d,.]+\s+to\s+[\d,.]+\s+of\s+([\d,.]+)\s+entries|Menampilkan\s+[\d,.]+\s+(?:sampai|hingga)\s+[\d,.]+\s+dari\s+([\d,.]+)\s+(?:entri|data))', text, re.I)
     totals = {int(re.sub(r'[^0-9]', '', a or b)) for a, b in matches}
     return totals.pop() if len(totals) == 1 else None
 
 
-def capture(page, project, output, source):
-    tables = page.locator('table')
-    recognized = []
-    for i in range(tables.count()):
-        t = tables.nth(i)
-        if not t.is_visible():
-            continue
-        snap = t.evaluate(SNAPSHOT)
-        for adapter in ADAPTERS:
-            if adapter.recognizes(snap['headers']):
-                recognized.append((i, adapter))
+def capture(page, project, output, source, confirm=None, on_progress=None, table_index=None, should_stop=None):
+    discovery_error = None
+    try:
+        recognized = [(t['index'], t['adapter']) for t in discover_tables(page, source['menu']) if t['adapter'] and (table_index is None or t['index'] == table_index)]
+    except Exception as exc:
+        recognized = []
+        discovery_error = f'Pembacaan struktur tabel gagal ({type(exc).__name__}).'
     key = hashlib.sha256(json.dumps([source['menu'], source['unit'], source['year'], source['period'], source['url']], ensure_ascii=False).encode()).hexdigest()[:20]
     dataset = {'id': key, 'name': f"{source['menu']} · {source['period']}", 'source': source, 'rows': []}
     source['rowCount'] = 0
+    source['pages'] = []
     project['datasets'] = [d for d in project['datasets'] if d['id'] != key] + [dataset]
     if len(recognized) != 1:
-        source.update(check='failed', errors=['adapter belum tersedia' if not recognized else 'Beberapa tabel cocok; pemilihan tabel memerlukan adapter khusus.'])
+        source.update(check='failed', errors=[discovery_error or ('adapter belum tersedia' if not recognized else 'Beberapa tabel cocok; pemilihan tabel memerlukan adapter khusus.')])
         save(output, project)
         return
     index, adapter = recognized[0]
     source['adapter'] = adapter.name
+    headers = page.locator('table').nth(index).evaluate(SNAPSHOT)['headers']
+    source.update(adapter.metadata(headers, source))
+    source['columns'] = headers
     total = expected_total(page.locator('table').nth(index))
     if total is not None:
         source['expectedRows'] = total
@@ -131,6 +118,8 @@ def capture(page, project, output, source):
     errors = []
     try:
         for page_index in range(1000):
+            if should_stop and should_stop():
+                errors.append('Dihentikan pengguna; progres tersimpan.'); break
             table = page.locator('table').nth(index)
             rows, scroll_errors = scroll_rows(table, adapter)
             errors.extend(scroll_errors)
@@ -139,11 +128,22 @@ def capture(page, project, output, source):
                 errors.append('Halaman berulang; pagination dihentikan tanpa mengklaim lengkap.')
                 break
             seen_pages.add(fingerprint)
+            current_headers = table.evaluate(SNAPSHOT)['headers']
+            if current_headers != headers:
+                errors.append('Struktur kolom berubah saat pagination; pengambilan dihentikan.'); break
+            observed_total = expected_total(table)
+            if total is not None and observed_total is not None and total != observed_total:
+                errors.append('Total sumber berubah saat penarikan; ulangi setelah data stabil.'); break
             dataset['rows'].extend(rows)
+            source['pages'].append({'page': page_index + 1, 'rowCount': len(rows), 'rowsHash': hashlib.sha256(fingerprint.encode()).hexdigest(), 'capturedAt': now()})
             source.update(check='unchecked', errors=['Pengambilan belum selesai.'], pagesCaptured=page_index+1, rowCount=len(dataset['rows']))
             save(output, project)
+            if on_progress:
+                on_progress(f"{len(dataset['rows'])} baris tersimpan; halaman {page_index+1}.")
             # Only actual, visible pagination controls with explicit next semantics.
-            candidates = page.locator('[aria-label="pagination" i] a, [aria-label="pagination" i] button, .dataTables_paginate a, .dataTables_paginate button, .dt-paging button, a[rel="next"]')
+            pagination_scope = table.locator('xpath=ancestor::*[contains(concat(" ",normalize-space(@class)," ")," dataTables_wrapper ") or contains(concat(" ",normalize-space(@class)," ")," dt-container ")][1]')
+            scope = pagination_scope if pagination_scope.count() else table.locator('..')
+            candidates = scope.locator('[aria-label="pagination" i] a, [aria-label="pagination" i] button, .dataTables_paginate a, .dataTables_paginate button, .dt-paging button, a[rel="next"]')
             next_controls = []
             for j in range(candidates.count()):
                 c = candidates.nth(j)
@@ -155,7 +155,8 @@ def capture(page, project, output, source):
             if len(next_controls) != 1:
                 errors.append('Kontrol halaman berikutnya ambigu.'); break
             print(f"{len(dataset['rows'])} baris tersimpan. Kontrol berikutnya ditemukan: {next_controls[0].inner_text()!r}")
-            if input('Lanjut klik navigasi pagination ini? [y/N] ').strip().lower() != 'y':
+            proceed = confirm('Lanjut ke halaman berikutnya yang ditemukan?') if confirm else input('Lanjut klik navigasi pagination ini? [y/N] ').strip().lower() == 'y'
+            if not proceed:
                 errors.append('Pagination dihentikan pengguna.'); break
             before_url = urlsplit(page.url)
             href = next_controls[0].get_attribute('href')
@@ -221,7 +222,7 @@ def main():
             if not menu or not period:
                 print('Nama menu dan periode wajib dicatat.'); continue
             source = {'menu': menu, 'period': period, 'unit': unit, 'year': year, 'url': safe_url(page.url), 'capturedAt': now(), 'check': 'unchecked'}
-            project['inventory'].append({'menu': menu, 'period': period, 'url': source['url'], 'status': 'halaman dikunjungi; filter dicatat pengguna'})
+            project['inventory'].append({'menu': menu, 'period': period, 'unit': unit, 'year': year, 'url': source['url'], 'status': 'halaman dikunjungi; filter dicatat pengguna'})
             save(args.output, project)
             print('Mulai dari halaman pagination pertama. Pengambilan ulang mengganti bagian dengan konteks yang sama.')
             if input('Halaman pertama sudah aktif dan filter benar? [y/N] ').strip().lower() == 'y':
