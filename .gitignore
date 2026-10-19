@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env*
+!.env.example
+exports/
+collector-output/
+.playwright/
+__pycache__/
+.venv/
+*.tsbuildinfo
