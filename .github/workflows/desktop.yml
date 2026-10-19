@@ -2,7 +2,7 @@ name: Build Windows desktop collector
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
     paths: ['collector/**', '.github/workflows/desktop.yml']
   pull_request:
     paths: ['collector/**', '.github/workflows/desktop.yml']
