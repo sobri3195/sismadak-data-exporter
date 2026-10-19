@@ -733,3 +733,83 @@ tr:nth-child(even) {
 .group-list strong {
   color: var(--teal);
 }
+.workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 24px;
+}
+.workflow article {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 20px;
+}
+.step-number {
+  display: grid;
+  place-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e7f5f3;
+  color: var(--teal);
+  font-weight: bold;
+  margin-bottom: 14px;
+}
+.workflow h2 {
+  font-size: 15px;
+}
+.workflow p {
+  font-size: 12px;
+  margin: 10px 0 16px;
+}
+.workflow code {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.action-link {
+  display: inline-block;
+  padding: 11px 15px;
+  border-radius: 7px;
+  background: var(--teal);
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+}
+.text-link {
+  display: block;
+  color: var(--teal);
+  font-size: 11px;
+  margin-top: 12px;
+}
+.workflow small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.collector-steps {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  padding-left: 19px;
+}
+.collector-steps li {
+  margin: 10px 0;
+}
+.collector-steps code {
+  padding: 2px 5px;
+  margin: 0;
+}
+@media (max-width: 1100px) {
+  .workflow {
+    grid-template-columns: 1fr;
+  }
+  .workflow article {
+    padding: 18px;
+  }
+  .workflow p {
+    margin: 8px 0 12px;
+  }
+}

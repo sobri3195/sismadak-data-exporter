@@ -2,6 +2,12 @@
 
 Aplikasi Next.js App Router + TypeScript untuk menggabungkan **data yang berhasil diimpor**, memeriksa bukti kelengkapannya, dan mengunduh PDF/CSV/JSON. Antarmuka Bahasa Indonesia; putih, navy, dan teal. Collector Playwright Python berjalan terpisah di komputer pengguna. **Tidak ada integrasi SISMADAK asli yang sudah diverifikasi.**
 
+## Tarik data lalu jadikan PDF
+
+Dari aplikasi Vercel: **Unduh collector (.zip)** → ekstrak dan jalankan **mulai.cmd** (Windows) atau **sh mulai.sh** (macOS/Linux) → masukkan URL HTTPS SISMADAK → login sendiri → ambil tabel pada menu/periode yang dipilih → impor **collector-output/project.json** → **Buat PDF gabungan**. Python 3.10+ dibutuhkan di komputer pengguna. Tidak perlu clone repository untuk memakai paket collector. Launcher menginstal dependensi dan Chromium dengan verifikasi TLS standar; launcher Windows belum diuji pada Windows asli.
+
+Paket publik dibuat saat `npm run build`/`npm run dev` oleh script Node.js dari lima file kode/panduan yang diizinkan secara eksplisit, ditambah checksum. Proses build Vercel hanya mengemas sumber Python sebagai ZIP; tidak menjalankan Python atau browser dan tidak menyertakan progres, cookie, kredensial, atau data pengguna. PDF tetap bisa dibuat dari impor JSON/CSV/HTML yang sudah dimiliki pengguna.
+
 ## Menjalankan aplikasi
 
 Prasyarat Node.js 24 dan npm (sesuai runtime deployment Vercel).
@@ -123,9 +129,12 @@ Resume mempertahankan bagian yang sudah disimpan. Untuk bagian yang terputus, lo
 SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python -m unittest discover -s tests -p 'test_collector.py' -v
 # Di terminal lain: npm run build && npm start
 SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python tests/browser_smoke.py
+SISMADAK_TEST_CHROMIUM=/usr/bin/chromium .venv/bin/python tests/collector_to_pdf.py
 ```
 
-Sesuaikan `SISMADAK_TEST_CHROMIUM` dengan executable Chromium lokal. Pengujian tidak menghubungi SISMADAK: fixture 112 baris, mismatch total, adapter tidak dikenal, pagination, gulir, inventaris, resume, impor HTML/CSV, unduh PDF, dan tampilan ponsel. Tes TypeScript memeriksa round-trip JSON/CSV, tipe nilai, duplikasi, syarat kelengkapan, PDF 112 indikator/12 bulan, serta daftar isi lebih dari 20 bagian. Validasi produksi harus dijalankan pada akun/HTML SISMADAK yang diizinkan sebelum mengklaim integrasi nyata.
+Sesuaikan `SISMADAK_TEST_CHROMIUM` dengan executable Chromium lokal. Pengujian tidak menghubungi SISMADAK: fixture 112 baris, mismatch total, adapter tidak dikenal, pagination, gulir, inventaris, resume, impor HTML/CSV, unduh PDF, dan tampilan ponsel. Tes TypeScript memeriksa round-trip JSON/CSV, tipe nilai, duplikasi, syarat kelengkapan, PDF 112 indikator/12 bulan, serta daftar isi lebih dari 20 bagian. Tes `collector_to_pdf.py` mengunduh ZIP dari aplikasi yang berjalan, menjalankan modul collector dari ZIP terhadap fixture 112 indikator × 12 bulan, mengimpor manifest, dan memeriksa isi PDF hasilnya. Ini bukan pengujian login SISMADAK asli.
+
+Validasi produksi harus dijalankan pada akun/HTML SISMADAK yang diizinkan sebelum mengklaim integrasi nyata.
 
 ## Deployment Vercel
 
@@ -134,10 +143,10 @@ Sesuaikan `SISMADAK_TEST_CHROMIUM` dengan executable Chromium lokal. Pengujian t
 3. Install `npm ci`, build `npm run build`, output default Next.js. Tidak perlu mengatur secret atau memasang Python/Playwright di Vercel.
 4. Deploy, lalu uji impor contoh sintetis dan unduh PDF. Header keamanan di `next.config.ts` membatasi koneksi ke origin sendiri, menolak frame/object/gambar eksternal, dan menonaktifkan referrer. Tidak ada route server yang menerima file.
 
-Konfigurasi `vercel.json` menetapkan framework Next.js, instalasi `npm ci`, dan build `npm run build`. Biarkan Output Directory pada default Next.js; jangan ubah menjadi `out` atau `public`. Untuk repository ini, Root Directory adalah root repository (bukan folder `app` atau `collector`). `.vercelignore` mengecualikan virtualenv, collector Python, browser, pengujian, contoh file, dan hasil ekspor dari upload Vercel CLI. File contoh tetap dapat dicoba melalui tombol sintetis di aplikasi. Git integration Vercel memakai checkout repository, tetapi collector tidak diimpor oleh aplikasi atau dijalankan selama build.
+Konfigurasi `vercel.json` menetapkan framework Next.js, instalasi `npm ci`, dan build `npm run build`. Biarkan Output Directory pada default Next.js; jangan ubah menjadi `out` atau `public`. Untuk repository ini, Root Directory adalah root repository (bukan folder `app` atau `collector`). `.vercelignore` mengecualikan virtualenv, browser, pengujian, contoh file, dan hasil ekspor dari upload Vercel CLI. Sumber collector tetap disertakan sebagai input pembentukan paket ZIP publik dengan allowlist; kode Python tidak dijalankan oleh build. File contoh tetap dapat dicoba melalui tombol sintetis di aplikasi. Git integration Vercel memakai checkout repository, tetapi collector tidak diimpor oleh aplikasi atau dijalankan selama build.
 
-Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada deployment Vercel. Vercel mengelola runtime Next.js. Workflow GitHub Actions memeriksa instalasi, 9 tes aplikasi/PDF, dan build dengan Node.js 24 pada push ke main dan pull request.
+Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada deployment Vercel. Vercel mengelola runtime Next.js. Workflow GitHub Actions memeriksa instalasi, tes aplikasi/PDF dan paket collector, build dengan Node.js 24, serta collector dan alur ZIP → PDF sintetis pada push ke main dan pull request.
 
 Setelah deployment, uji halaman utama, tombol contoh sintetis, impor ulang CSV arsip, unduh JSON/PDF, dan refresh halaman. Data proyek memang hilang ketika refresh; simpan JSON terlebih dahulu. Tidak perlu mengaktifkan Vercel Analytics atau mengatur secret aplikasi. Jika build gagal, periksa Build Logs, Node.js 24.x, Root Directory, dan output default sebelum menambahkan konfigurasi lain.
 
-Build dan alur browser sudah diuji pada mesin pengembangan; deployment ke akun Vercel belum diverifikasi karena belum ada project/akses Vercel yang terhubung. Deployment tidak dilakukan otomatis oleh repository ini. Jangan mengaktifkan analytics yang membaca isi data. Jika kelak membutuhkan penyimpanan server, tambahkan autentikasi dan penyimpanan privat dalam pekerjaan terpisah sebelum mengunggah data pengguna.
+Build dan alur browser diuji menggunakan data sintetis pada mesin pengembangan dan CI GitHub. Periksa check Vercel pada PR untuk status deployment commit terkait. Status Ready membuktikan proses deployment selesai, bukan bahwa login dan seluruh menu SISMADAK asli sudah diuji. Git integration Vercel yang diaktifkan pemilik project dapat membuat preview otomatis saat branch didorong. Jangan mengaktifkan analytics yang membaca isi data. Jika kelak membutuhkan penyimpanan server, tambahkan autentikasi dan penyimpanan privat dalam pekerjaan terpisah sebelum mengunggah data pengguna.

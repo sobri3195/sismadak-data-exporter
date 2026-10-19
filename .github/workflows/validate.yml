@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: '1'
@@ -17,8 +17,25 @@ jobs:
         with:
           node-version: '24.x'
           cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - name: Install PDF test prerequisite
         run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Install synthetic browser test dependencies
+        run: |
+          python -m pip install -r collector/requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Validate collector and PDF workflow with synthetic data
+        shell: bash
+        run: |
+          export SISMADAK_TEST_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
+          python -m unittest discover -s tests -p 'test_collector.py' -v
+          npm start > /tmp/sismadak-server.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid"' EXIT
+          python tests/collector_to_pdf.py
+          python tests/browser_smoke.py
