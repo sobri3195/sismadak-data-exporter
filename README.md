@@ -4,7 +4,7 @@ Aplikasi Next.js App Router + TypeScript untuk menggabungkan **data yang berhasi
 
 ## Menjalankan aplikasi
 
-Prasyarat Node.js 22 atau 24 dan npm.
+Prasyarat Node.js 24 dan npm (sesuai runtime deployment Vercel).
 
 ```sh
 npm ci
@@ -130,8 +130,14 @@ Sesuaikan `SISMADAK_TEST_CHROMIUM` dengan executable Chromium lokal. Pengujian t
 ## Deployment Vercel
 
 1. Push repository ini ke GitHub milik Anda.
-2. Import repository di Vercel, pilih preset **Next.js**, root directory repository ini. Gunakan Node.js 22 atau 24.
+2. Import repository di Vercel, pilih preset **Next.js**, root directory repository ini. Gunakan Node.js **24.x**, sesuai `engines.node` di `package.json`.
 3. Install `npm ci`, build `npm run build`, output default Next.js. Tidak perlu mengatur secret atau memasang Python/Playwright di Vercel.
 4. Deploy, lalu uji impor contoh sintetis dan unduh PDF. Header keamanan di `next.config.ts` membatasi koneksi ke origin sendiri, menolak frame/object/gambar eksternal, dan menonaktifkan referrer. Tidak ada route server yang menerima file.
 
-Deployment tidak dilakukan otomatis oleh repository ini. Jangan mengaktifkan analytics yang membaca isi data. Jika kelak membutuhkan penyimpanan server, tambahkan autentikasi dan penyimpanan privat dalam pekerjaan terpisah sebelum mengunggah data pengguna.
+Konfigurasi `vercel.json` menetapkan framework Next.js, instalasi `npm ci`, dan build `npm run build`. Biarkan Output Directory pada default Next.js; jangan ubah menjadi `out` atau `public`. Untuk repository ini, Root Directory adalah root repository (bukan folder `app` atau `collector`). `.vercelignore` mengecualikan virtualenv, collector Python, browser, pengujian, contoh file, dan hasil ekspor dari upload Vercel CLI. File contoh tetap dapat dicoba melalui tombol sintetis di aplikasi. Git integration Vercel memakai checkout repository, tetapi collector tidak diimpor oleh aplikasi atau dijalankan selama build.
+
+Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada deployment Vercel. Vercel mengelola runtime Next.js. Workflow GitHub Actions memeriksa instalasi, 9 tes aplikasi/PDF, dan build dengan Node.js 24 pada push ke main dan pull request.
+
+Setelah deployment, uji halaman utama, tombol contoh sintetis, impor ulang CSV arsip, unduh JSON/PDF, dan refresh halaman. Data proyek memang hilang ketika refresh; simpan JSON terlebih dahulu. Tidak perlu mengaktifkan Vercel Analytics atau mengatur secret aplikasi. Jika build gagal, periksa Build Logs, Node.js 24.x, Root Directory, dan output default sebelum menambahkan konfigurasi lain.
+
+Build dan alur browser sudah diuji pada mesin pengembangan; deployment ke akun Vercel belum diverifikasi karena belum ada project/akses Vercel yang terhubung. Deployment tidak dilakukan otomatis oleh repository ini. Jangan mengaktifkan analytics yang membaca isi data. Jika kelak membutuhkan penyimpanan server, tambahkan autentikasi dan penyimpanan privat dalam pekerjaan terpisah sebelum mengunggah data pengguna.

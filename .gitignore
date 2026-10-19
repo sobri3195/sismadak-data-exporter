@@ -8,3 +8,4 @@ collector-output/
 __pycache__/
 .venv/
 *.tsbuildinfo
+.vercel/
