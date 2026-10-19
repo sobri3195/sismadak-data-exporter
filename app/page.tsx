@@ -180,10 +180,10 @@ export default function Home() {
         <section className="heading">
           <div>
             <div className="eyebrow">DARI SISMADAK KE DOKUMEN ANDA</div>
-            <h1>Tarik data, jadikan PDF</h1>
+            <h1>Impor data, unduh PDF</h1>
             <p>
-              Ambil data lewat collector lokal, impor hasilnya, lalu unduh satu
-              PDF gabungan.
+              Buka aplikasi web ini, impor JSON, CSV, atau HTML tabel SISMADAK,
+              lalu unduh PDF gabungan langsung dari browser.
             </p>
           </div>
           <button onClick={() => input.current?.click()} disabled={busy}>
@@ -193,11 +193,13 @@ export default function Home() {
         <div className="scope-note direct-pdf-note">
           <span>↓</span>
           <div>
-            <strong>PDF langsung dari aplikasi Windows</strong>
+            <strong>Buat PDF langsung di aplikasi web</strong>
             <p>
-              Setelah mengambil data, klik <b>4. Simpan PDF langsung</b> di
-              collector. Tidak perlu upload atau impor ulang untuk membuat PDF
-              lokal.
+              Sudah punya file hasil penarikan atau HTML tabel? Klik
+              <b> Impor hasil collector</b>, periksa datanya, lalu pilih
+              <b> Buat PDF gabungan</b>. Isi file diproses di browser tanpa
+              dikirim ke server. Python hanya diperlukan jika memakai collector
+              sumber di komputer.
             </p>
             <a
               className="text-link"
@@ -208,8 +210,8 @@ export default function Home() {
               Buka login SISMADAK RSPAU ↗
             </a>
             <small>
-              Login dilakukan sendiri di browser SISMADAK. Aplikasi ini tidak
-              menyimpan password.
+              Untuk mengambil data baru, login sendiri melalui collector lokal.
+              Aplikasi web tidak menyimpan password atau sesi SISMADAK.
             </small>
           </div>
         </div>

@@ -2,6 +2,14 @@
 
 Aplikasi Next.js App Router + TypeScript untuk menggabungkan **data yang berhasil diimpor**, memeriksa bukti kelengkapannya, dan mengunduh PDF/CSV/JSON. Antarmuka Bahasa Indonesia; putih, navy, dan teal. Collector Playwright Python berjalan terpisah di komputer pengguna. **Tidak ada integrasi SISMADAK asli yang sudah diverifikasi.**
 
+## Jalankan di Vercel
+
+Import repository ini melalui [Vercel New Project](https://vercel.com/new), pilih preset **Next.js**, Root Directory root repository, Node.js **24.x**, lalu Deploy. Konfigurasi `vercel.json` sudah menyediakan `npm ci` dan `npm run build`; biarkan Output Directory default. Tidak perlu Python, browser Playwright, database, atau environment variable di Vercel.
+
+Setelah deployment, buka situs → **Impor hasil collector** (JSON/CSV/HTML) → periksa cakupan → **Buat PDF gabungan**. Tombol **Coba 112 indikator sintetis** dapat dipakai untuk menguji PDF tanpa data pengguna. Proses impor dan PDF berjalan di browser; simpan JSON sebelum menutup tab.
+
+Untuk mengambil data baru dari akun SISMADAK, collector dijalankan terpisah di komputer pengguna. Login SISMADAK tidak dijalankan di server Vercel. Aplikasi Windows dan PDF desktop merupakan pilihan tambahan; aplikasi web tetap dapat dipakai tanpa menjalankan EXE jika file sumber sudah tersedia.
+
 ## Tarik data lalu jadikan PDF
 
 **Windows tanpa Python:** buka tautan **Aplikasi Windows tanpa Python** → pilih run berhasil workflow desktop di GitHub → unduh artifact `SISMADAK-Collector-Windows-x64` → ekstrak ZIP di dalamnya → jalankan `SISMADAK-Collector.exe` bersama folder `_internal`. Chromium dan runtime Python sudah dikemas. Artifact memerlukan login GitHub dan tersedia 30 hari; workflow dapat dijalankan kembali. Build portabel x64 ini belum ditandatangani dengan sertifikat penerbit.
