@@ -1,7 +1,7 @@
 name: Validate application
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
   pull_request:
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           export SISMADAK_TEST_CHROMIUM="$(python -c 'from playwright.sync_api import sync_playwright; p=sync_playwright().start(); print(p.chromium.executable_path); p.stop()')"
-          python -m unittest discover -s tests -p 'test_collector.py' -v
+          python -m unittest discover -s tests -p 'test_*.py' -v
           npm start > /tmp/sismadak-server.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid"' EXIT

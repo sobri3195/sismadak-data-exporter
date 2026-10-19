@@ -18,7 +18,7 @@ if errorlevel 1 goto failed
 ".venv\Scripts\python.exe" -m playwright install chromium
 if errorlevel 1 goto failed
 echo Login SISMADAK dilakukan sendiri di browser. Jangan bagikan password.
-".venv\Scripts\python.exe" collect.py --resume
+".venv\Scripts\python.exe" desktop.py
 if errorlevel 1 goto failed
 echo Selesai. Impor collector-output\project.json ke aplikasi untuk membuat PDF.
 pause

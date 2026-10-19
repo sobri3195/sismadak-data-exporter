@@ -1,0 +1,61 @@
+name: Build Windows desktop collector
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'feat/**']
+    paths: ['collector/**', '.github/workflows/desktop.yml']
+  pull_request:
+    paths: ['collector/**', '.github/workflows/desktop.yml']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned build dependencies
+        run: |
+          python -m pip install -r collector/requirements.txt pyinstaller==6.16.0
+      - name: Bundle Chromium and desktop executable
+        shell: pwsh
+        run: |
+          $env:PLAYWRIGHT_BROWSERS_PATH = "$pwd\.bundled-browsers"
+          python -m playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name SISMADAK-Collector --collect-all playwright --add-data ".bundled-browsers;chromium" collector/desktop.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item collector/PANDUAN.md dist/SISMADAK-Collector/PANDUAN.md
+      - name: Test packaged executable without a Python command
+        shell: pwsh
+        run: |
+          $app = Resolve-Path dist/SISMADAK-Collector/SISMADAK-Collector.exe
+          $resultPath = Join-Path $pwd "desktop-self-test.json"
+          $originalPath = $env:PATH
+          try {
+            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+            $test = Start-Process -FilePath $app -ArgumentList @('--self-test', '--self-test-output', $resultPath) -PassThru
+            if (-not $test.WaitForExit(180000)) { Stop-Process -Id $test.Id -Force; throw 'Desktop self-test timeout' }
+          } finally { $env:PATH = $originalPath }
+          if (Test-Path $resultPath) { Get-Content $resultPath }
+          if ($test.ExitCode -ne 0) { throw "Desktop self-test failed: $($test.ExitCode)" }
+          $result = Get-Content $resultPath | ConvertFrom-Json
+          if (-not ($result.passed -and $result.frozen -and $result.gui -and $result.chromium)) { throw 'Invalid self-test result' }
+          Get-Content $resultPath
+      - name: Package portable Windows application
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/SISMADAK-Collector -DestinationPath SISMADAK-Collector-Windows-x64.zip
+          Get-FileHash SISMADAK-Collector-Windows-x64.zip -Algorithm SHA256 | Format-List | Out-File SHA256-Windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SISMADAK-Collector-Windows-x64
+          path: |
+            SISMADAK-Collector-Windows-x64.zip
+            SHA256-Windows.txt
+            desktop-self-test.json
+          compression-level: 0
+          retention-days: 30

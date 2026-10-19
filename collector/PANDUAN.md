@@ -1,16 +1,37 @@
-# Tarik data SISMADAK → PDF
+# Collector desktop SISMADAK → PDF
 
-Paket ini hanya berisi kode collector, dependensi, dan launcher. Tidak ada password/cookie/token/data rumah sakit di dalamnya. Python 3.10+ dan komputer dengan desktop diperlukan; bukan untuk dijalankan di Vercel atau telepon seluler.
+## Windows portabel — tanpa Python terpasang
 
-1. Ekstrak seluruh ZIP ke folder pribadi yang mudah ditemukan. Jangan menjalankannya dari dalam ZIP.
-2. Windows: klik dua kali `mulai.cmd`. macOS/Linux: buka Terminal pada folder hasil ekstraksi dan jalankan `sh mulai.sh`. Launcher membuat virtualenv dan menginstal Playwright/Chromium dengan verifikasi TLS standar. Koneksi Internet dan ruang disk untuk Chromium diperlukan. Launcher Windows belum diuji pada Windows asli.
-3. Masukkan URL HTTPS SISMADAK milik Anda di terminal. Login sendiri pada browser yang dibuka. Password/cookie tidak disimpan oleh collector.
-4. Buka menu, atur unit/tahun/periode menggunakan kontrol yang tersedia, dan pindah ke halaman pertama tabel. Kembali ke terminal, tekan Enter, dan isi metadata sesuai tampilan. Konfirmasikan pengambilan. Pagination hanya dilanjutkan melalui kontrol yang ditemukan dan persetujuan Anda.
-5. Ulangi untuk menu/periode berikutnya. Ketik `q` ketika selesai. File `collector-output/project.json` ditulis setiap bagian/halaman agar progres tidak hilang. Menjalankan launcher lagi melanjutkan proyek; bagian dengan konteks yang sama diambil ulang dari halaman pertama dan mengganti hasil bagian tersebut.
-6. Kembali ke aplikasi web, pilih **Impor hasil collector**, lalu pilih `collector-output/project.json`. Periksa jumlah baris, menu/periode, dan pesan kesalahan. Klik **Buat PDF gabungan** untuk mengunduh PDF.
+1. Dari tautan Aplikasi Windows di aplikasi web, buka run berhasil pada workflow **Build Windows desktop collector** di GitHub → **Artifacts** → `SISMADAK-Collector-Windows-x64`. Unduhan artifact memerlukan login GitHub dan disimpan 30 hari; pemilik repository dapat menjalankan workflow lagi dari tab Actions bila kedaluwarsa.
+2. Ekstrak unduhan artifact, lalu ekstrak `SISMADAK-Collector-Windows-x64.zip` di dalamnya. Pertahankan seluruh folder, termasuk `_internal`; jangan memindahkan EXE sendirian.
+3. Buka `SISMADAK-Collector.exe`. Python, Playwright, dan Chromium sudah dikemas. Build ini portabel x64 untuk Windows 10/11 dan belum ditandatangani dengan sertifikat penerbit. Jangan menonaktifkan perlindungan perangkat; gunakan kebijakan instalasi yang berlaku di organisasi Anda.
+4. Isi alamat HTTPS awal tanpa query/fragment. Klik **Buka browser / login**, lalu login sendiri di browser. Collector tidak menyimpan password/cookie/token.
+5. Pilih menu, unit, tahun, dan periode melalui kontrol SISMADAK yang benar-benar ada. Isi metadata yang sama di collector, lalu klik **Periksa tabel**. Pilih satu tabel dari daftar yang ditemukan. Tabel tanpa adapter tidak dapat diambil dengan menebak struktur.
+6. Pastikan pagination ada di halaman pertama, lalu klik **Ambil tabel**. Konfirmasi halaman berikutnya melalui dialog. Tombol hentikan bekerja setelah halaman aktif; data yang sudah disimpan tetap tersedia. Jika login habis, login kembali melalui browser dan ulangi bagian dari halaman pertama.
+7. Hasil default ada di folder pribadi `SISMADAK-Collector/project.json`; gunakan **Pilih folder hasil** atau **Buka folder hasil**. Penarikan berikutnya membaca proyek yang sama dan mengganti bagian dengan konteks yang sama. Proyek tidak mempertahankan versi lama secara otomatis.
+8. Impor `project.json` ke aplikasi web. Periksa status **Penarikan** dan **Isi** secara terpisah, buka temuan per baris, lalu buat PDF dan/atau unduh laporan pemeriksaan.
 
-Adapter awal mengenali tabel datar Rekap IMUT RS (No, Kategori, Indikator, Januari–Desember, Benchmark). Format lain ditandai “adapter belum tersedia”. Area Manajemen/Klinik, rincian indikator, Kegiatan, dan lampiran memerlukan adapter tambahan; lampiran belum diunduh atau digabung. Inventaris hanya mencatat tautan yang ditemukan pada halaman yang dikunjungi. Tidak ada klaim semua data akun telah diambil.
+## Alternatif paket sumber Python (Windows/macOS/Linux)
 
-Collector tidak melakukan edit/simpan/hapus pada SISMADAK, menebak endpoint, melewati pembatasan akses, atau menonaktifkan TLS. Proyek disimpan lokal dan mungkin memuat data sensitif: jangan letakkan di folder publik, commit ke Git, atau kirim ke layanan AI. Checksum sumber tersedia di `SHA256SUMS.txt` untuk memeriksa konsistensi paket.
+Paket ZIP sumber memerlukan Python 3.10+ dengan Tkinter dan komputer dengan desktop. Ekstrak seluruh ZIP. Windows: jalankan `mulai.cmd`. macOS/Linux: jalankan `sh mulai.sh`. Launcher membuat virtualenv, memasang dependensi serta Chromium melalui TLS standar, lalu membuka GUI `desktop.py`. Pada distribusi Linux tertentu, Tkinter/venv harus tersedia dari paket sistem; ikuti pesan resmi instalasi.
 
-Jika tidak memakai launcher: buat virtualenv, `pip install -r requirements.txt`, `python -m playwright install chromium`, lalu `python collect.py --url https://HOST-ANDA --resume`. Bila gagal instalasi, perbaiki koneksi/izin/dependensi sistem dari pesan resmi; jangan menonaktifkan pemeriksaan sertifikat.
+Untuk CLI: buat virtualenv, `pip install -r requirements.txt`, `python -m playwright install chromium`, lalu `python collect.py --url https://HOST-ANDA --resume`. CLI menyimpan hasil di `collector-output/project.json` relatif folder saat dijalankan. GUI menyimpan ke folder pribadi yang dipilih. ZIP publik hanya berisi kode, launcher, panduan, dan checksum sumber; tidak memuat data rumah sakit.
+
+## Skema adapter dan batas pengujian
+
+- Rekap IMUT RS: No, Kategori, Indikator, Januari–Desember, Benchmark; header bertingkat dapat dipetakan melalui nama daun yang unik.
+- Area Manajemen/Klinik harian: Tanggal/Tgl/Tanggal Pengukuran, Indikator/Nama Indikator, dan Nilai/Hasil/Capaian atau Pembilang/Numerator + Penyebut/Denominator. Nama menu harus sesuai konteks area.
+- Matriks harian Area Manajemen/Klinik: Indikator + minimal 28 kolom hari unik 1–31 (atau 01–31). Jika metadata bulan Indonesia dan tahun dikenali, kolom wajib dibandingkan dengan kalender; bila tidak, catatan isi mewajibkan pemeriksaan periode. Nilai dan header hari tetap dipertahankan.
+- Rincian/detail indikator: Parameter/Komponen + Keterangan/Deskripsi/Uraian/Nilai; tabel pengukuran harian dengan Tanggal + Indikator + nilai atau pembilang/penyebut juga dikenali.
+- Kegiatan: Tanggal/Tanggal Pelaksanaan + Kegiatan/Nama Kegiatan.
+- Daftar lampiran: Nama File/Nama Berkas/Lampiran + Jenis/Ukuran/Keterangan/Tipe. Adapter ini membaca daftar, **tidak mengunduh atau menggabungkan berkas lampiran**.
+
+Nama kolom dan nilai sumber dipertahankan. Colspan/rowspan pada header dan rowspan isi diekspansi secara terstruktur; colspan isi (misalnya baris total) ditolak karena tidak aman menebak maknanya. Beberapa tabel memerlukan pilihan pengguna. Tabel virtual tanpa identitas `No` unik belum didukung. Format yang tidak memenuhi skema dicatat **adapter belum tersedia**.
+
+Skema ini diuji menggunakan fixture sintetis. Kecocokan login, filter, pagination, dan format SISMADAK asli belum diverifikasi. Contoh HTML yang sudah disamarkan masih dibutuhkan untuk menguji variasi halaman nyata. Tidak ada klaim seluruh menu/periode akun telah diambil.
+
+## Pemeriksaan dan keamanan
+
+Setiap halaman mencatat jumlah baris dan SHA-256 representasi baris. Aplikasi membandingkan total sumber, jumlah hasil, dan penjumlahan bukti halaman. Fingerprint adalah metadata pemeriksaan, bukan tanda tangan digital. Tanpa total sumber yang dapat dibaca, status penarikan tetap belum diperiksa. Sel kosong dan 0/0 dinilai pada sumbu isi, sehingga berbeda dari kegagalan penarikan.
+
+Collector hanya membaca; tidak mengedit, menyimpan perubahan, menghapus, menebak endpoint, melewati pembatasan akses, atau mengabaikan TLS. Jangan commit hasil asli, cookie, token, atau file .env; jangan tempatkan data pengguna di direktori publik. File proyek disimpan atomik dengan izin terbatas pada sistem POSIX. Data tidak dikirim ke analytics atau layanan AI.

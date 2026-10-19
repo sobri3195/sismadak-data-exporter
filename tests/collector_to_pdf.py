@@ -32,8 +32,11 @@ with tempfile.TemporaryDirectory(prefix='sismadak-flow-') as tmp, sync_playwrigh
     with app.expect_download() as event:
         app.get_by_role('link', name='↓ Unduh collector (.zip)', exact=True).click()
     archive = zipfile.ZipFile(io.BytesIO(event.value.path().read_bytes()))
-    assert set(archive.namelist()) == {'collect.py', 'requirements.txt', 'PANDUAN.md', 'mulai.cmd', 'mulai.sh', 'SHA256SUMS.txt'}
+    assert set(archive.namelist()) == {'collect.py', 'adapters.py', 'desktop.py', 'requirements.txt', 'PANDUAN.md', 'mulai.cmd', 'mulai.sh', 'SHA256SUMS.txt'}
     archive.extractall(tmp)
+    import sys
+    sys.path.insert(0,tmp)
+    sys.modules.pop('adapters',None)
     spec = importlib.util.spec_from_file_location('downloaded_collector', Path(tmp) / 'collect.py')
     collector = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(collector)
@@ -57,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix='sismadak-flow-') as tmp, sync_playwrigh
     pdf = Path(tmp) / 'result.pdf'
     event.value.save_as(pdf)
     text = subprocess.check_output(['pdftotext', '-layout', str(pdf), '-'], text=True)
-    for expected in ['Daftar isi', 'Indikator 112', 'Desember', 'lengkap terverifikasi', 'Halaman 1 dari', 'SINTETIS']:
+    for expected in ['Daftar isi', 'Indikator 112', 'Desember', 'lengkap terverifikasi', 'Halaman 1 dari', 'SINTETIS', 'Penarikan', 'Isi', 'Laporan pemeriksaan']:
         assert expected in text, expected
     assert not errors, errors
     browser.close()

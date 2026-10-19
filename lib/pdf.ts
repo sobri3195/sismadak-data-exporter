@@ -8,7 +8,7 @@ export function createPDF(project: Project) {
   doc.addFont("DejaVuSans.ttf", "DejaVu", "normal");
   doc.setFont("DejaVu");
   const toc: { title: string; page: number }[] = [];
-  const tocPages = Math.max(1, Math.ceil(project.datasets.length / 20));
+  const tocPages = Math.max(1, Math.ceil((project.datasets.length + 1) / 20));
   for (let i = 1; i < tocPages; i++) doc.addPage();
   for (const d of project.datasets) {
     doc.addPage();
@@ -21,7 +21,7 @@ export function createPDF(project: Project) {
     doc.setFontSize(10);
     doc.text(
       doc.splitTextToSize(
-        `${d.source.menu} | Unit: ${d.source.unit || "belum diketahui"} | Periode: ${d.source.period || "belum diketahui"}\nStatus: ${inspect(d, project.inventory).status}\n${d.rows.length} baris | Sumber: ${d.source.url || "impor lokal"}\n${project.synthetic ? "CONTOH DATA SINTETIS" : "Data sesuai file yang diimpor; cakupan global belum dibuktikan."}`,
+        `${d.source.menu} | Unit: ${d.source.unit || "belum diketahui"} | Periode: ${d.source.period || "belum diketahui"}\nPenarikan: ${inspect(d, project.inventory).captureStatus}\nIsi: ${inspect(d, project.inventory).contentStatus}\nRingkasan: ${inspect(d, project.inventory).status}\n${d.rows.length} baris | Sumber: ${d.source.url || "impor lokal"}\n${project.synthetic ? "CONTOH DATA SINTETIS" : "Data sesuai file yang diimpor; cakupan global belum dibuktikan."}`,
         265,
       ),
       15,
@@ -65,6 +65,42 @@ export function createPDF(project: Project) {
       });
     }
   }
+  doc.addPage();
+  doc.setFontSize(16);
+  doc.text("Laporan pemeriksaan", 15, 16);
+  toc.push({ title: "Laporan pemeriksaan", page: doc.getNumberOfPages() });
+  autoTable(doc, {
+    startY: 24,
+    head: [
+      [
+        "Bagian",
+        "Penarikan",
+        "Isi",
+        "Baris / total sumber",
+        "Kosong",
+        "Baris 0/0",
+      ],
+    ],
+    body: project.datasets.map((d) => {
+      const s = inspect(d, project.inventory);
+      return [
+        d.name,
+        s.captureStatus,
+        s.contentStatus,
+        `${d.rows.length} / ${d.source.expectedRows ?? "?"}`,
+        s.emptyCells,
+        s.zeroOverZero,
+      ];
+    }),
+    styles: {
+      font: "DejaVu",
+      fontStyle: "normal",
+      fontSize: 8,
+      overflow: "linebreak",
+    },
+    headStyles: { fontStyle: "normal", fillColor: [15, 40, 65] },
+    margin: { top: 24, bottom: 17, left: 15, right: 15 },
+  });
   for (let p = 1; p <= tocPages; p++) {
     doc.setPage(p);
     doc.setFontSize(23);

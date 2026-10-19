@@ -84,6 +84,9 @@ test("verification requires exact row evidence and inventory period; unknown fie
   const p = syntheticProject();
   const d = p.datasets[0];
   d.rows[1].Januari = "90%";
+  assert.equal(inspect(d, p.inventory).captureStatus, "lengkap terverifikasi");
+  assert.equal(inspect(d, p.inventory).contentStatus, "perlu diperiksa");
+  d.rows[2].Januari = "90%";
   assert.equal(inspect(d, p.inventory).status, "lengkap terverifikasi");
   assert.equal(inspect(d, []).status, "belum diperiksa");
   d.source.expectedRows = 113;

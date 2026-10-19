@@ -1,6 +1,9 @@
 "use client";
 import { useRef, useState } from "react";
 import {
+  inventoryMatches,
+  verificationReport,
+  verificationCSV,
   groupRows,
   type GroupDimension,
   MONTHS,
@@ -28,6 +31,9 @@ function download(content: BlobPart, name: string, type: string) {
 export default function Home() {
   const [project, setProject] = useState<Project>(emptyProject);
   const [selected, setSelected] = useState("");
+  const [focusRow, setFocusRow] = useState<{ id: string; row: number } | null>(
+    null,
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -120,10 +126,21 @@ export default function Home() {
           Object.values(r).some((v) =>
             display(v).toLowerCase().includes(query.toLowerCase()),
           )) &&
-        (!month || Object.hasOwn(r, month) || display(r.Bulan) === month),
+        (!month ||
+          Object.hasOwn(
+            r,
+            current?.source.columnRoles?.[`month:${month}`] ?? month,
+          ) ||
+          display(r.Bulan) === month),
     ) || [];
+  const monthColumns = MONTHS.map(
+    (m) => current?.source.columnRoles?.[`month:${m}`] ?? m,
+  );
   const columns = (stats?.columns || []).filter(
-    (c) => !month || !MONTHS.includes(c) || c === month,
+    (c) =>
+      !month ||
+      !monthColumns.includes(c) ||
+      c === (current?.source.columnRoles?.[`month:${month}`] ?? month),
   );
   return (
     <div className="shell">
@@ -184,7 +201,20 @@ export default function Home() {
               Unduh dan ekstrak collector. Jalankan di komputer, login sendiri,
               lalu ambil menu/periode yang diperlukan.
             </p>
-            <a className="action-link" href="/sismadak-collector.zip" download>
+            <a
+              className="action-link"
+              href="https://github.com/sobri3195/sismadak-data-exporter/actions/workflows/desktop.yml"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Aplikasi Windows tanpa Python ↗
+            </a>
+            <small>
+              Buka build berhasil → Artifacts → ekstrak ZIP, lalu jalankan
+              SISMADAK-Collector.exe. Unduhan artifact memerlukan login GitHub.
+              Build portabel belum ditandatangani.
+            </small>
+            <a className="text-link" href="/sismadak-collector.zip" download>
               ↓ Unduh collector (.zip)
             </a>
             <a className="text-link" href="#collector">
@@ -272,12 +302,12 @@ export default function Home() {
             <small>Baris sama dalam konteks sumber sama</small>
           </article>
           <article>
-            <span>Bagian terverifikasi</span>
+            <span>Penarikan terverifikasi</span>
             <strong>
               {
                 project.datasets.filter(
                   (d) =>
-                    inspect(d, project.inventory).status ===
+                    inspect(d, project.inventory).captureStatus ===
                     "lengkap terverifikasi",
                 ).length
               }
@@ -517,7 +547,7 @@ export default function Home() {
                     </select>
                   </label>
                 </div>
-                <div className="table-wrap">
+                <div className="table-wrap" id="data-preview">
                   <table>
                     <thead>
                       <tr>
@@ -528,7 +558,15 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {rows.slice(page * 25, (page + 1) * 25).map((r, i) => (
-                        <tr key={i}>
+                        <tr
+                          key={i}
+                          className={
+                            focusRow?.id === current.id &&
+                            focusRow.row === page * 25 + i + 1
+                              ? "focused-row"
+                              : ""
+                          }
+                        >
                           {columns.map((c) => (
                             <td key={c}>
                               <span className={`cell-${valueKind(r[c])}`}>
@@ -572,16 +610,48 @@ export default function Home() {
         <section id="coverage" className="panel">
           <div className="panel-head">
             <div>
-              <h2>Pemeriksaan cakupan</h2>
+              <h2>Pusat verifikasi</h2>
               <p>
-                Inventaris dan bukti pengambilan menjadi dasar status setiap
-                bagian.
+                Periksa keberhasilan penarikan dan kelengkapan isi secara
+                terpisah. Nol, kosong, dan 0/0 tetap berbeda.
               </p>
             </div>
             <span className="badge">
               {project.inventory.length} entri inventaris
             </span>
           </div>
+          {!!project.datasets.length && (
+            <div className="verification-tools">
+              <button
+                className="secondary"
+                onClick={() =>
+                  download(
+                    JSON.stringify(verificationReport(project), null, 2),
+                    "sismadak-pemeriksaan.json",
+                    "application/json",
+                  )
+                }
+              >
+                Unduh laporan pemeriksaan JSON
+              </button>
+              <button
+                className="secondary"
+                onClick={() =>
+                  download(
+                    verificationCSV(project),
+                    "sismadak-temuan.csv",
+                    "text/csv;charset=utf-8",
+                  )
+                }
+              >
+                Unduh temuan CSV
+              </button>
+              <p>
+                Status berdasarkan manifest impor. Hash halaman bukan tanda
+                tangan digital atau bukti akses live.
+              </p>
+            </div>
+          )}
           {project.datasets.length ? (
             <div className="coverage-list">
               {project.datasets.map((d) => {
@@ -593,8 +663,91 @@ export default function Home() {
                         {d.source.menu} ·{" "}
                         {d.source.period || "Periode tidak diketahui"}
                       </strong>
-                      <span className="badge">{s.status}</span>
+                      <span className="badge">Ringkasan: {s.status}</span>
                     </div>
+                    <div className="verification-status">
+                      <span>
+                        Penarikan: <b>{s.captureStatus}</b>
+                      </span>
+                      <span>
+                        Isi: <b>{s.contentStatus}</b>
+                      </span>
+                    </div>
+                    <p>
+                      {s.evidenceLevel} · Adapter:{" "}
+                      {d.source.adapter || "impor umum"}
+                      {d.source.adapterValidation === "schema-fixtures-only"
+                        ? " · Skema diuji dengan fixture; SISMADAK asli belum diverifikasi."
+                        : ""}
+                    </p>
+                    {!!s.missingColumns.length && (
+                      <p className="amber">
+                        Kolom wajib belum tersedia:{" "}
+                        {s.missingColumns.join(", ")}
+                      </p>
+                    )}
+                    {d.source.contentWarnings?.map((w) => (
+                      <p className="amber" key={w}>
+                        {w}
+                      </p>
+                    ))}
+                    {s.evidenceErrors.map((e) => (
+                      <p className="amber" key={e}>
+                        {e}
+                      </p>
+                    ))}
+                    {!!d.source.pages?.length && (
+                      <details>
+                        <summary>Bukti {d.source.pages.length} halaman</summary>
+                        <div className="evidence-list">
+                          {d.source.pages.map((p) => (
+                            <div key={p.page}>
+                              Halaman {p.page}: {p.rowCount} baris · SHA-256{" "}
+                              <code>{p.rowsHash}</code>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                    {!!s.issues.length && (
+                      <details>
+                        <summary>
+                          {s.issues.length} temuan isi — lihat baris
+                        </summary>
+                        <ul className="issue-list">
+                          {s.issues.slice(0, 50).map((issue, i) => (
+                            <li key={i}>
+                              <button
+                                className="link"
+                                onClick={() => {
+                                  setSelected(d.id);
+                                  setQuery("");
+                                  setMonth("");
+                                  setPage(Math.floor((issue.row - 1) / 25));
+                                  setFocusRow({ id: d.id, row: issue.row });
+                                  requestAnimationFrame(() =>
+                                    document
+                                      .getElementById("data-preview")
+                                      ?.scrollIntoView({
+                                        behavior: "smooth",
+                                        block: "center",
+                                      }),
+                                  );
+                                }}
+                              >
+                                Baris {issue.row}, {issue.column}: {issue.kind}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {s.issues.length > 50 && (
+                          <p>
+                            Pratinjau 50 temuan pertama. Unduh laporan untuk
+                            seluruh temuan.
+                          </p>
+                        )}
+                      </details>
+                    )}
                     <p>
                       {d.rows.length} baris diimpor /{" "}
                       {d.source.expectedRows ?? "total sumber tidak tersedia"} ·{" "}
@@ -625,10 +778,8 @@ export default function Home() {
               {project.inventory
                 .filter(
                   (i) =>
-                    !project.datasets.some(
-                      (d) =>
-                        d.source.menu === i.menu &&
-                        d.source.period === i.period,
+                    !project.datasets.some((d) =>
+                      inventoryMatches(d.source, i),
                     ),
                 )
                 .map((i, n) => (
@@ -768,9 +919,11 @@ export default function Home() {
               Panduan lengkap tersedia di dalam ZIP.
             </p>
             <p className="muted">
-              Adapter awal: Rekap IMUT RS. Menu lain ditandai “adapter belum
-              tersedia”. Lihat README untuk instalasi, resume, dan batas
-              validasi.
+              Adapter skema: Rekap IMUT RS, Area Manajemen/Klinik harian,
+              rincian indikator, Kegiatan, dan daftar lampiran. Format yang
+              tidak cocok tetap ditandai “adapter belum tersedia”. Daftar
+              lampiran tidak mengunduh berkas lampiran. Lihat README untuk batas
+              skema.
             </p>
           </div>
         </section>
