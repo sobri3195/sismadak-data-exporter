@@ -1,0 +1,13 @@
+.git/
+.next/
+node_modules/
+.venv/
+.playwright/
+collector/
+collector-output/
+exports/
+examples/
+tests/
+.env*
+*.tsbuildinfo
+**/__pycache__/
