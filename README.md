@@ -136,7 +136,7 @@ Sesuaikan `SISMADAK_TEST_CHROMIUM` dengan executable Chromium lokal. Pengujian t
 
 Konfigurasi `vercel.json` menetapkan framework Next.js, instalasi `npm ci`, dan build `npm run build`. Biarkan Output Directory pada default Next.js; jangan ubah menjadi `out` atau `public`. Untuk repository ini, Root Directory adalah root repository (bukan folder `app` atau `collector`). `.vercelignore` mengecualikan virtualenv, collector Python, browser, pengujian, contoh file, dan hasil ekspor dari upload Vercel CLI. File contoh tetap dapat dicoba melalui tombol sintetis di aplikasi. Git integration Vercel memakai checkout repository, tetapi collector tidak diimpor oleh aplikasi atau dijalankan selama build.
 
-Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada deployment Vercel. Vercel mengelola runtime Next.js. Workflow GitHub Actions memeriksa instalasi, 9 tes aplikasi/PDF, dan build dengan Node.js 24 pada push ke main dan pull request; workflow baru ini belum dijalankan di GitHub saat disiapkan.
+Tidak perlu custom server, perintah `npm start`, atau proses Playwright pada deployment Vercel. Vercel mengelola runtime Next.js. Workflow GitHub Actions memeriksa instalasi, 9 tes aplikasi/PDF, dan build dengan Node.js 24 pada push ke main dan pull request.
 
 Setelah deployment, uji halaman utama, tombol contoh sintetis, impor ulang CSV arsip, unduh JSON/PDF, dan refresh halaman. Data proyek memang hilang ketika refresh; simpan JSON terlebih dahulu. Tidak perlu mengaktifkan Vercel Analytics atau mengatur secret aplikasi. Jika build gagal, periksa Build Logs, Node.js 24.x, Root Directory, dan output default sebelum menambahkan konfigurasi lain.
 
