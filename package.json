@@ -6,7 +6,9 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "prebuild": "node scripts/build-collector.mjs",
+    "predev": "node scripts/build-collector.mjs"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
@@ -21,6 +23,7 @@
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "fflate": "^0.8.3",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3"
   },

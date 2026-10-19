@@ -81,6 +81,21 @@ export default function Home() {
       if (input.current) input.current.value = "";
     }
   }
+  async function exportPDF() {
+    if (!total || exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      const { createPDF } = await import("../lib/pdf");
+      createPDF(project).save("sismadak-gabungan.pdf");
+    } catch {
+      setError(
+        "PDF belum berhasil dibuat. Coba kembali atau simpan proyek sebagai JSON.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
   function updateSource(key: keyof Dataset["source"], value: string) {
     if (!current) return;
     setProject((p) => ({
@@ -122,7 +137,7 @@ export default function Home() {
         <div className="workspace-label">RUANG KERJA</div>
         <nav>
           <a className="active" href="#workspace">
-            ▦ &nbsp; Proyek data
+            ▦ &nbsp; Tarik data & PDF
           </a>
           <a href="#coverage">◷ &nbsp; Pemeriksaan cakupan</a>
           <a href="#export">↗ &nbsp; Ekspor dokumen</a>
@@ -147,16 +162,70 @@ export default function Home() {
         </header>
         <section className="heading">
           <div>
-            <div className="eyebrow">KELOLA DATA, JAGA KETELITIAN</div>
-            <h1>Proyek data Anda</h1>
+            <div className="eyebrow">DARI SISMADAK KE DOKUMEN ANDA</div>
+            <h1>Tarik data, jadikan PDF</h1>
             <p>
-              Satukan data SISMADAK, periksa kelengkapannya, lalu ekspor dengan
-              rapi.
+              Ambil data lewat collector lokal, impor hasilnya, lalu unduh satu
+              PDF gabungan.
             </p>
           </div>
           <button onClick={() => input.current?.click()} disabled={busy}>
-            ＋ Impor data
+            ＋ Impor hasil collector
           </button>
+        </section>
+        <section
+          className="workflow"
+          aria-label="Langkah tarik data menjadi PDF"
+        >
+          <article>
+            <span className="step-number">1</span>
+            <h2>Tarik data SISMADAK</h2>
+            <p>
+              Unduh dan ekstrak collector. Jalankan di komputer, login sendiri,
+              lalu ambil menu/periode yang diperlukan.
+            </p>
+            <a className="action-link" href="/sismadak-collector.zip" download>
+              ↓ Unduh collector (.zip)
+            </a>
+            <a className="text-link" href="#collector">
+              Lihat cara menjalankan →
+            </a>
+          </article>
+          <article>
+            <span className="step-number">2</span>
+            <h2>Impor hasil collector</h2>
+            <p>
+              Pilih file <code>collector-output/project.json</code>, lalu
+              periksa cakupan, jumlah baris, dan pesan kesalahan.
+            </p>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => input.current?.click()}
+            >
+              Pilih file hasil penarikan
+            </button>
+          </article>
+          <article>
+            <span className="step-number">3</span>
+            <h2>Buat PDF gabungan</h2>
+            <p>
+              Gabungkan semua bagian yang diimpor. Status pemeriksaan setiap
+              bagian tetap tercantum di PDF.
+            </p>
+            <button
+              disabled={!total || exporting}
+              aria-busy={exporting}
+              onClick={() => void exportPDF()}
+            >
+              {exporting ? "Menyusun PDF…" : "Buat PDF gabungan"}
+            </button>
+            <small>
+              {total
+                ? `${total.toLocaleString("id-ID")} baris siap diekspor`
+                : "Impor data terlebih dahulu untuk membuat PDF."}
+            </small>
+          </article>
         </section>
         <input
           ref={input}
@@ -604,17 +673,7 @@ export default function Home() {
               <button
                 disabled={!total || exporting}
                 aria-busy={exporting}
-                onClick={async () => {
-                  setExporting(true);
-                  try {
-                    const { createPDF } = await import("../lib/pdf");
-                    createPDF(project).save("sismadak-gabungan.pdf");
-                  } catch (e) {
-                    setError(String(e));
-                  } finally {
-                    setExporting(false);
-                  }
-                }}
+                onClick={() => void exportPDF()}
               >
                 {exporting ? "Menyusun PDF…" : "↓ Unduh PDF"}
               </button>
@@ -676,15 +735,38 @@ export default function Home() {
         <section id="collector" className="collector">
           <div className="collector-icon">⌘</div>
           <div>
-            <h2>Ambil data melalui collector lokal</h2>
+            <h2>Menjalankan collector untuk menarik data</h2>
             <p>
-              Jalankan collector Python di komputer Anda, login sendiri, lalu
-              kunjungi halaman dan filter yang ingin diambil. Impor JSON
-              hasilnya di sini.
+              Unduh ZIP pada langkah 1, lalu ekstrak seluruh isinya. Komputer
+              memerlukan Python 3.10 atau lebih baru dan koneksi Internet untuk
+              instalasi awal.
             </p>
-            <code>
-              python collector/collect.py --url https://HOST-SISMADAK-ANDA
-            </code>
+            <ol className="collector-steps">
+              <li>
+                <strong>Windows:</strong> klik dua kali <code>mulai.cmd</code>.{" "}
+                <strong>macOS/Linux:</strong> buka Terminal di folder ekstraksi,
+                lalu jalankan <code>sh mulai.sh</code>.
+              </li>
+              <li>
+                Masukkan URL HTTPS SISMADAK di terminal. Login sendiri di
+                browser yang terbuka; jangan memasukkan password ke aplikasi
+                ini.
+              </li>
+              <li>
+                Pilih menu, unit, tahun, dan periode di SISMADAK. Ikuti
+                konfirmasi terminal untuk mengambil tabel dan pagination.
+              </li>
+              <li>
+                Ketik <code>q</code> untuk selesai. Pada langkah 2, impor{" "}
+                <code>collector-output/project.json</code>, periksa hasilnya,
+                lalu buat PDF.
+              </li>
+            </ol>
+            <p>
+              Jika terputus, jalankan launcher lagi untuk melanjutkan proyek.
+              Bagian yang diambil ulang harus dimulai dari halaman pertama.
+              Panduan lengkap tersedia di dalam ZIP.
+            </p>
             <p className="muted">
               Adapter awal: Rekap IMUT RS. Menu lain ditandai “adapter belum
               tersedia”. Lihat README untuk instalasi, resume, dan batas

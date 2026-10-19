@@ -9,3 +9,5 @@ __pycache__/
 .venv/
 *.tsbuildinfo
 .vercel/
+
+/public/sismadak-collector.zip

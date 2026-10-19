@@ -187,11 +187,12 @@ def capture(page, project, output, source):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--url', required=True, help='URL HTTPS SISMADAK yang diketahui pengguna')
+    parser.add_argument('--url', help='URL HTTPS SISMADAK yang diketahui pengguna')
     parser.add_argument('--output', type=Path, default=Path('collector-output/project.json'))
     parser.add_argument('--resume', action='store_true')
     args = parser.parse_args()
-    parsed = urlsplit(args.url)
+    url = args.url or input('Masukkan URL HTTPS SISMADAK: ').strip()
+    parsed = urlsplit(url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
         parser.error('Gunakan URL HTTPS tanpa kredensial.')
     if args.output.exists() and not args.resume:
@@ -204,7 +205,7 @@ def main():
         browser = pw.chromium.launch(headless=False)
         context = browser.new_context(accept_downloads=False)
         page = context.new_page()
-        page.goto(args.url, wait_until='domcontentloaded')
+        page.goto(url, wait_until='domcontentloaded')
         print('Login sendiri di browser. Collector tidak menyimpan password, cookie, atau token.')
         print('Buka menu dan atur filter sendiri. Jangan lakukan pengubahan data. Ketik q untuk selesai.')
         while True:
