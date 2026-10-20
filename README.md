@@ -102,6 +102,7 @@ Inventaris hanya mencakup tautan yang ditemukan dan periode yang dikonfirmasi pe
 
 ## Ekspor
 
+- **Paket ZIP**: tombol **Unduh paket ZIP** pada Ekspor hasil proyek menggabungkan PDF, `project.json`, CSV arsip/baris, laporan pemeriksaan JSON/CSV, manifest jumlah bagian/baris serta ukuran file, dan petunjuk. Semua bagian dan duplikasi disertakan, terlepas dari filter pratinjau. `project.json` atau `arsip.csv` dapat diimpor ulang; ekstrak ZIP terlebih dahulu. ZIP tidak menjadi bukti seluruh data akun terambil. Dibuat sepenuhnya di browser tanpa upload; simpan secara privat. PDF dan salinan arsip dapat memakai banyak memori untuk proyek besar; unduh JSON terpisah jika paket gagal.
 - **PDF gabungan**: daftar isi dengan tautan halaman, halaman pembatas untuk setiap dataset, status/sumber/periode, nomor halaman, header tabel berulang. Kolom dibagi dalam kelompok maksimal enam kolom dengan pengulangan indikator/kolom kunci. Teks panjang dibungkus. Font DejaVu disertakan untuk teks Indonesia dan simbol seperti `≥`; lisensi di `licenses/DejaVu.txt`. Aksara di luar cakupan font memerlukan font tambahan.
 - **JSON**: arsip proyek lengkap; tipe nilai, metadata sumber, inventaris, dan kolom asli dipertahankan.
 - **CSV arsip**: satu kolom `__sismadak_project_json` berisi JSON proyek utuh; dapat diimpor ulang tanpa kehilangan tipe nilai atau konteks. Format ini ditujukan untuk arsip/pertukaran aplikasi, bukan grid spreadsheet besar (spreadsheet mempunyai batas panjang sel).

@@ -1,6 +1,9 @@
 """Run against npm start. Uses only synthetic fixtures, no external data."""
 import json
 import os
+import subprocess
+from io import BytesIO
+from zipfile import ZipFile
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 BASE = os.environ.get('SISMADAK_TEST_URL', 'http://127.0.0.1:3000')
@@ -31,6 +34,23 @@ with sync_playwright() as p:
     assert report['sections'][0]['captureStatus']=='lengkap terverifikasi'
     assert report['sections'][0]['contentStatus']=='perlu diperiksa'
     assert report['sections'][0]['issues'][0]['row']==2
+    page.get_by_placeholder('Cari dalam tabel…').fill('tidak-ada-indikator-yang-cocok')
+    with page.expect_download() as event:
+        page.get_by_role('button', name='↓ Unduh paket ZIP', exact=True).click()
+    assert event.value.suggested_filename == 'sismadak-paket.zip'
+    with ZipFile(BytesIO(event.value.path().read_bytes())) as bundle:
+        project = json.loads(bundle.read('project.json'))
+        assert len(project['datasets'][0]['rows']) == 112
+        assert project['datasets'][0]['rows'][0]['Januari'] == '0'
+        assert project['datasets'][0]['rows'][1]['Januari'] == ''
+        assert project['datasets'][0]['rows'][2]['Januari'] == '0/0'
+        assert bundle.read('sismadak-gabungan.pdf').startswith(b'%PDF')
+        pdf_text = subprocess.run(['pdftotext', '-layout', '-', '-'], input=bundle.read('sismadak-gabungan.pdf'), capture_output=True, check=True).stdout.decode()
+        assert 'Indikator sintetis 112' in pdf_text and 'Desember' in pdf_text
+        assert json.loads(bundle.read('manifest.json'))['rows'] == 112
+        assert json.loads(bundle.read('pemeriksaan.json'))['sections'][0]['contentStatus'] == 'perlu diperiksa'
+        assert {'arsip.csv','baris.csv','pemeriksaan.csv','BACA-SAYA.txt'}.issubset(bundle.namelist())
+    page.get_by_placeholder('Cari dalam tabel…').fill('')
     with page.expect_download() as event:
         page.get_by_role('button', name='↓ CSV arsip', exact=True).click()
     archive = event.value.path().read_bytes()
@@ -58,5 +78,5 @@ with sync_playwright() as p:
     page.screenshot(path='/tmp/sismadak-desktop.png', full_page=True)
     assert not errors, errors
     assert not external, external
-    print('PASS: import HTML/CSV, duplicate detection, blank/0/0, PDF download, invalid JSON, mobile layout, no external requests')
+    print('PASS: import HTML/CSV, duplicate detection, blank/0/0, PDF and complete ZIP download, invalid JSON, mobile layout, no external requests')
     browser.close()

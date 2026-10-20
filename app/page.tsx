@@ -37,6 +37,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [bundleExporting, setBundleExporting] = useState(false);
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const [month, setMonth] = useState("");
@@ -88,7 +89,7 @@ export default function Home() {
     }
   }
   async function exportPDF() {
-    if (!total || exporting) return;
+    if (!total || exporting || bundleExporting) return;
     setExporting(true);
     setError("");
     try {
@@ -100,6 +101,29 @@ export default function Home() {
       );
     } finally {
       setExporting(false);
+    }
+  }
+  async function exportBundle() {
+    if (!project.datasets.length || exporting || bundleExporting) return;
+    setBundleExporting(true);
+    setError("");
+    try {
+      const { createDownloadBundle } = await import("../lib/bundle");
+      const bytes = createDownloadBundle(project);
+      download(
+        new Uint8Array(bytes).buffer,
+        "sismadak-paket.zip",
+        "application/zip",
+      );
+      setNotice(
+        "Paket ZIP berisi PDF, data asli, dan laporan pemeriksaan berhasil dibuat di browser.",
+      );
+    } catch {
+      setError(
+        "Paket ZIP belum berhasil dibuat. Coba unduh JSON atau PDF secara terpisah.",
+      );
+    } finally {
+      setBundleExporting(false);
     }
   }
   function updateSource(key: keyof Dataset["source"], value: string) {
@@ -269,7 +293,7 @@ export default function Home() {
               bagian tetap tercantum di PDF.
             </p>
             <button
-              disabled={!total || exporting}
+              disabled={!total || exporting || bundleExporting}
               aria-busy={exporting}
               onClick={() => void exportPDF()}
             >
@@ -840,6 +864,27 @@ export default function Home() {
             </div>
           </div>
           <div className="export-grid">
+            <article className="bundle-export">
+              <h3>Satu paket PDF & data</h3>
+              <p>
+                Unduh seluruh bagian dalam satu ZIP: PDF gabungan, JSON asli,
+                CSV arsip/baris, manifest, dan laporan pemeriksaan. Dibuat di
+                browser tanpa unggah ke server.
+              </p>
+              <button
+                disabled={
+                  !project.datasets.length || exporting || bundleExporting
+                }
+                aria-busy={bundleExporting}
+                onClick={() => void exportBundle()}
+              >
+                {bundleExporting ? "Menyiapkan paket…" : "↓ Unduh paket ZIP"}
+              </button>
+              <small>
+                Simpan hasil secara privat. Filter pratinjau tidak membatasi isi
+                paket.
+              </small>
+            </article>
             <article>
               <h3>Dokumen PDF gabungan</h3>
               <p>
@@ -847,7 +892,7 @@ export default function Home() {
                 kolom terbagi.
               </p>
               <button
-                disabled={!total || exporting}
+                disabled={!total || exporting || bundleExporting}
                 aria-busy={exporting}
                 onClick={() => void exportPDF()}
               >

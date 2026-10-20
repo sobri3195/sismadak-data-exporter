@@ -11,6 +11,7 @@
     "predev": "node scripts/build-collector.mjs"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
     "next": "^16.4.2",
@@ -23,7 +24,6 @@
     "@types/papaparse": "^5.3.16",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "fflate": "^0.8.3",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3"
   },
