@@ -155,6 +155,8 @@ def capture(page, project, output, source, confirm=None, on_progress=None, table
                 break
             if len(next_controls) != 1:
                 errors.append('Kontrol halaman berikutnya ambigu.'); break
+            if next_controls[0].evaluate("el => !!el.form && ((el.tagName==='BUTTON' && el.type==='submit') || (el.tagName==='INPUT' && ['submit','image'].includes(el.type)))"):
+                errors.append('Pagination berupa submit formulir; tidak diklik oleh scraper baca-saja.'); break
             print(f"{len(dataset['rows'])} baris tersimpan. Kontrol berikutnya ditemukan: {next_controls[0].inner_text()!r}")
             proceed = confirm('Lanjut ke halaman berikutnya yang ditemukan?') if confirm else input('Lanjut klik navigasi pagination ini? [y/N] ').strip().lower() == 'y'
             if not proceed:
@@ -187,11 +189,73 @@ def capture(page, project, output, source, confirm=None, on_progress=None, table
         save(output, project)
 
 
+def eligible_pages(context, origin):
+    """Only snapshot tabs already opened by the user on the initial HTTPS host."""
+    result = []
+    for page in context.pages:
+        if page.is_closed():
+            continue
+        parsed = urlsplit(page.url)
+        if parsed.scheme == 'https' and parsed.netloc == origin and not parsed.username and not parsed.password:
+            result.append(page)
+    return result
+
+
+def scrape_tabs(context, project, output, origin, metadata, confirm, auto_pagination=False, on_progress=None):
+    """Scrape user-opened tabs without crawling links, changing filters, or guessing URLs."""
+    pages = eligible_pages(context, origin)
+    summary = {'tabs': len(pages), 'captured': 0, 'failed': 0, 'skipped': 0}
+    for index, page in enumerate(pages):
+        if page.is_closed():
+            summary['skipped'] += 1
+            continue
+        page.bring_to_front()
+        values = metadata(page, index + 1, len(pages))
+        if not values or not values.get('menu', '').strip() or not values.get('period', '').strip():
+            summary['skipped'] += 1
+            continue
+        # Login/session redirects may occur while the user confirms the active filters.
+        if page not in eligible_pages(context, origin):
+            summary['skipped'] += 1
+            continue
+        if not confirm('Menu/filter benar dan pagination pada halaman pertama?'):
+            summary['skipped'] += 1
+            continue
+        if page not in eligible_pages(context, origin):
+            summary['skipped'] += 1
+            continue
+        source = {key: values.get(key, '').strip() for key in ('menu', 'unit', 'year', 'period')}
+        source.update(url=safe_url(page.url), capturedAt=now(), check='unchecked')
+        inventory(page, project, origin)
+        item = {key: source[key] for key in ('menu', 'unit', 'year', 'period', 'url')}
+        if not any(all(existing.get(key) == value for key, value in item.items()) for existing in project['inventory']):
+            project['inventory'].append({**item, 'status': 'tab dikunjungi; filter dikonfirmasi pengguna'})
+        save(output, project)
+        capture(page, project, output, source,
+                confirm=(lambda _: True) if auto_pagination else confirm,
+                on_progress=on_progress)
+        summary['failed' if source['check'] == 'failed' else 'captured'] += 1
+    return summary
+
+
+def prompt_metadata(page, index, count):
+    print(f'\nTab {index}/{count} ditampilkan di browser. Kosongkan menu untuk melewati tab ini.')
+    menu = input('Nama menu persis seperti tampilan: ').strip()
+    if not menu:
+        return None
+    return {'menu': menu,
+            'period': input('Periode/filter aktif: ').strip(),
+            'unit': input('Unit aktif (boleh kosong): ').strip(),
+            'year': input('Tahun aktif (boleh kosong): ').strip()}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', help='URL HTTPS SISMADAK yang diketahui pengguna')
     parser.add_argument('--output', type=Path, default=Path('collector-output/project.json'))
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--all-tabs', action='store_true', help='Scrape semua tab HTTPS pada host yang sama, setelah login manual.')
+    parser.add_argument('--auto-pagination', action='store_true', help='Otomatis ikuti kontrol Next yang ditemukan, setelah konfirmasi awal setiap tabel.')
     parser.add_argument('--pdf',type=Path,help='Simpan PDF gabungan lokal setelah penarikan selesai.')
     args = parser.parse_args()
     url = args.url or input(f'URL HTTPS SISMADAK [Enter: {DEFAULT_LOGIN_URL}]: ').strip() or DEFAULT_LOGIN_URL
@@ -201,7 +265,7 @@ def main():
     if args.output.exists() and not args.resume:
         parser.error('Output sudah ada. Gunakan --resume atau nama output baru.')
     project = json.loads(args.output.read_text(encoding='utf-8')) if args.resume and args.output.exists() else {'schemaVersion': 1, 'inventory': [], 'datasets': []}
-    if project.get('schemaVersion') != 1 or not isinstance(project.get('datasets'), list):
+    if project.get('schemaVersion') != 1 or not isinstance(project.get('datasets'), list) or not isinstance(project.get('inventory'), list):
         parser.error('Format progres tidak didukung.')
     os.umask(0o077)
     with sync_playwright() as pw:
@@ -211,9 +275,21 @@ def main():
         page.goto(url, wait_until='domcontentloaded')
         print('Login sendiri di browser. Collector tidak menyimpan password, cookie, atau token.')
         print('Buka menu dan atur filter sendiri. Jangan lakukan pengubahan data. Ketik q untuk selesai.')
+        if args.all_tabs:
+            print('Buka menu/periode yang diperlukan pada beberapa tab browser ini. Setiap tab harus berada di halaman pertama.')
+        if args.auto_pagination:
+            print('Pagination otomatis aktif: hanya kontrol Next yang ditemukan akan diklik setelah konfirmasi awal tabel.')
         while True:
             if input('\nEnter setelah halaman siap; q untuk keluar: ').strip().lower() == 'q':
                 break
+            if args.all_tabs:
+                summary = scrape_tabs(context, project, args.output, parsed.netloc,
+                                      metadata=prompt_metadata,
+                                      confirm=lambda text: input(text + ' [y/N] ').strip().lower() == 'y',
+                                      auto_pagination=args.auto_pagination,
+                                      on_progress=print)
+                print(f"Tab: {summary['tabs']}; diambil: {summary['captured']}; gagal: {summary['failed']}; dilewati: {summary['skipped']}. Bukan bukti seluruh akun lengkap.")
+                continue
             if urlsplit(page.url).netloc != parsed.netloc or urlsplit(page.url).scheme != 'https':
                 print('Kembali ke host SISMADAK awal sebelum mengambil data.'); continue
             inventory(page, project, parsed.netloc)
@@ -228,7 +304,7 @@ def main():
             save(args.output, project)
             print('Mulai dari halaman pagination pertama. Pengambilan ulang mengganti bagian dengan konteks yang sama.')
             if input('Halaman pertama sudah aktif dan filter benar? [y/N] ').strip().lower() == 'y':
-                capture(page, project, args.output, source)
+                capture(page, project, args.output, source, confirm=(lambda _: True) if args.auto_pagination else None)
                 print(f"Progres tersimpan: {args.output}. Tidak ada klaim cakupan seluruh akun.")
         save(args.output, project)
         browser.close()

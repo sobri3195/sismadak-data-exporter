@@ -17,6 +17,20 @@ Paket ZIP sumber memerlukan Python 3.10+ dengan Tkinter dan komputer dengan desk
 
 Untuk CLI: buat virtualenv, `pip install -r requirements.txt`, `python -m playwright install chromium`, lalu `python collect.py --url https://HOST-ANDA --resume`. CLI menyimpan hasil di `collector-output/project.json` relatif folder saat dijalankan. GUI menyimpan ke folder pribadi yang dipilih. ZIP publik hanya berisi kode, launcher, panduan, dan checksum sumber; tidak memuat data rumah sakit.
 
+## Mode scraping beberapa tab (CLI)
+
+Setelah instalasi paket sumber, jalankan dari folder ekstraksi:
+
+```sh
+python collect.py --all-tabs --auto-pagination --resume --pdf collector-output/laporan.pdf
+```
+
+Login sendiri pada browser yang terbuka. Buka menu/periode yang dibutuhkan pada beberapa tab **di browser collector yang sama**, lalu atur setiap tab ke halaman pagination pertama. Kembali ke terminal dan tekan Enter. Scraper menampilkan setiap tab; masukkan menu, periode/filter, unit, dan tahun sesuai tampilan. Konfirmasikan sumber sebelum mulai. Kosongkan nama menu untuk melewati tab. Tekan Enter lagi untuk putaran berikutnya, atau `q` untuk selesai dan membuat PDF.
+
+`--auto-pagination` mengizinkan kontrol Next/Berikutnya yang benar-benar ditemukan dilanjutkan otomatis setelah konfirmasi awal setiap tab. Hapus opsi tersebut jika ingin konfirmasi pada setiap halaman. Tombol submit formulir tidak diklik. Tab di luar host HTTPS awal diabaikan; scraper tidak merayapi tautan, mengubah filter, atau menebak endpoint. Tab berformat tidak dikenal/ambigu dicatat gagal tanpa menghentikan tab berikutnya. Ringkasan membedakan tab diambil, gagal, dan dilewati; tanpa total sumber, data tetap belum diperiksa.
+
+Progres tersimpan pada setiap halaman. `--resume` membaca JSON sebelumnya; login ulang, buka tab/filter yang sama, dan mulai lagi dari halaman pertama. Konteks menu/unit/tahun/periode/URL yang sama diganti, bukan ditambahkan ganda. Browser login dan cookie tidak dipertahankan. Pengujian batch memakai fixture sintetis; belum ada pembuktian seluruh menu/periode akun SISMADAK.
+
 ## Skema adapter dan batas pengujian
 
 - Rekap IMUT RS: No, Kategori, Indikator, Januari–Desember, Benchmark; header bertingkat dapat dipetakan melalui nama daun yang unik.
