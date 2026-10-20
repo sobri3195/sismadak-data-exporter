@@ -28,6 +28,7 @@ export function createPDF(project: Project) {
       68,
     );
     const columns = inspect(d, project.inventory).columns;
+    if (!columns.length) continue;
     const anchor = columns.includes("Indikator") ? "Indikator" : columns[0];
     const rest = columns.filter((c) => c !== anchor);
     const chunks = Array.from(
