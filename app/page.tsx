@@ -180,16 +180,41 @@ export default function Home() {
         <section className="heading">
           <div>
             <div className="eyebrow">DARI SISMADAK KE DOKUMEN ANDA</div>
-            <h1>Tarik data, jadikan PDF</h1>
+            <h1>Impor data, unduh PDF</h1>
             <p>
-              Ambil data lewat collector lokal, impor hasilnya, lalu unduh satu
-              PDF gabungan.
+              Buka aplikasi web ini, impor JSON, CSV, atau HTML tabel SISMADAK,
+              lalu unduh PDF gabungan langsung dari browser.
             </p>
           </div>
           <button onClick={() => input.current?.click()} disabled={busy}>
             ＋ Impor hasil collector
           </button>
         </section>
+        <div className="scope-note direct-pdf-note">
+          <span>↓</span>
+          <div>
+            <strong>Buat PDF langsung di aplikasi web</strong>
+            <p>
+              Sudah punya file hasil penarikan atau HTML tabel? Klik
+              <b> Impor hasil collector</b>, periksa datanya, lalu pilih
+              <b> Buat PDF gabungan</b>. Isi file diproses di browser tanpa
+              dikirim ke server. Python hanya diperlukan jika memakai collector
+              sumber di komputer.
+            </p>
+            <a
+              className="text-link"
+              href="https://sismadak.rspauhardjolukito.co.id/login.php"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Buka login SISMADAK RSPAU ↗
+            </a>
+            <small>
+              Untuk mengambil data baru, login sendiri melalui collector lokal.
+              Aplikasi web tidak menyimpan password atau sesi SISMADAK.
+            </small>
+          </div>
+        </div>
         <section
           className="workflow"
           aria-label="Langkah tarik data menjadi PDF"
@@ -906,6 +931,12 @@ export default function Home() {
               <li>
                 Pilih menu, unit, tahun, dan periode di SISMADAK. Ikuti
                 konfirmasi terminal untuk mengambil tabel dan pagination.
+              </li>
+              <li>
+                Di aplikasi desktop, klik{" "}
+                <strong>4. Simpan PDF langsung</strong> dan pilih lokasi berkas.
+                Untuk pemeriksaan lebih rinci, Anda dapat memakai alur impor di
+                bawah.
               </li>
               <li>
                 Ketik <code>q</code> untuk selesai. Pada langkah 2, impor{" "}

@@ -862,3 +862,12 @@ tr:nth-child(even) {
   outline-offset: -2px;
   background: #e4f6f0 !important;
 }
+.direct-pdf-note {
+  margin-bottom: 20px;
+}
+.direct-pdf-note small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+}

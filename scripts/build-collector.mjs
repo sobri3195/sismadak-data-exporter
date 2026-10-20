@@ -10,6 +10,8 @@ const names = [
   "collect.py",
   "adapters.py",
   "desktop.py",
+  "report.py",
+  "profiles.py",
   "requirements.txt",
   "PANDUAN.md",
   "mulai.cmd",

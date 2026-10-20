@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='sismadak-flow-') as tmp, sync_playwrigh
     with app.expect_download() as event:
         app.get_by_role('link', name='↓ Unduh collector (.zip)', exact=True).click()
     archive = zipfile.ZipFile(io.BytesIO(event.value.path().read_bytes()))
-    assert set(archive.namelist()) == {'collect.py', 'adapters.py', 'desktop.py', 'requirements.txt', 'PANDUAN.md', 'mulai.cmd', 'mulai.sh', 'SHA256SUMS.txt'}
+    assert set(archive.namelist()) == {'collect.py', 'adapters.py', 'desktop.py', 'report.py', 'profiles.py', 'requirements.txt', 'PANDUAN.md', 'mulai.cmd', 'mulai.sh', 'SHA256SUMS.txt'}
     archive.extractall(tmp)
     import sys
     sys.path.insert(0,tmp)

@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, urljoin
 from playwright.sync_api import sync_playwright
 
+from profiles import DEFAULT_LOGIN_URL
 from adapters import MONTHS, ADAPTERS, SNAPSHOT, RekapIMUTAdapter
 
 def safe_url(url):
@@ -191,8 +192,9 @@ def main():
     parser.add_argument('--url', help='URL HTTPS SISMADAK yang diketahui pengguna')
     parser.add_argument('--output', type=Path, default=Path('collector-output/project.json'))
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--pdf',type=Path,help='Simpan PDF gabungan lokal setelah penarikan selesai.')
     args = parser.parse_args()
-    url = args.url or input('Masukkan URL HTTPS SISMADAK: ').strip()
+    url = args.url or input(f'URL HTTPS SISMADAK [Enter: {DEFAULT_LOGIN_URL}]: ').strip() or DEFAULT_LOGIN_URL
     parsed = urlsplit(url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
         parser.error('Gunakan URL HTTPS tanpa kredensial.')
@@ -230,6 +232,14 @@ def main():
                 print(f"Progres tersimpan: {args.output}. Tidak ada klaim cakupan seluruh akun.")
         save(args.output, project)
         browser.close()
+    if args.pdf:
+        from report import create_pdf
+        try:
+            create_pdf(project,args.pdf)
+        except Exception as exc:
+            print(f'PDF gagal dibuat ({type(exc).__name__}); JSON sumber tetap tersimpan.')
+            raise SystemExit(1)
+        print('PDF gabungan berhasil disimpan secara lokal.')
 
 if __name__ == '__main__':
     main()
