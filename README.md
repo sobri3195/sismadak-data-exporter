@@ -112,6 +112,10 @@ Inventaris hanya mencakup tautan yang ditemukan dan periode yang dikonfirmasi pe
 
 Jalankan di komputer dengan desktop/browser. Tidak berjalan di request Vercel.
 
+**Scraping beberapa tab:** setelah instalasi di bawah, jalankan `python collector/collect.py --all-tabs --auto-pagination --resume --pdf exports/sismadak.pdf`. Login sendiri di browser yang terbuka; buka beberapa menu/periode pada tab di browser tersebut. Tekan Enter di terminal, catat menu/periode untuk setiap tab, dan konfirmasi filter serta halaman pertama. Scraper mengikuti kontrol Next yang benar-benar ditemukan tanpa bertanya pada setiap halaman. Tanpa `--auto-pagination`, setiap Next tetap memerlukan konfirmasi. Kosongkan menu untuk melewati tab. Ketik `q` untuk menyelesaikan dan membuat PDF.
+
+Mode ini hanya membaca tab HTTPS pada host awal, tidak membuka tautan menu secara otomatis atau mengubah filter. Tabel ambigu/format tidak dikenal dicatat gagal, lalu tab berikutnya dilanjutkan. Tombol Next yang berupa submit formulir tidak diklik. Progres tiap halaman tetap tersimpan; `--resume` memerlukan login ulang dan tab/filter yang sama pada halaman pertama. Pengambilan ulang mengganti dataset dengan konteks yang sama, bukan memulihkan sesi atau posisi otomatis. Jumlah tab yang diambil bukan bukti seluruh akun lengkap.
+
 ```sh
 python -m venv .venv
 # Linux/macOS:
